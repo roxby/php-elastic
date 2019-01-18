@@ -7,6 +7,9 @@ $v = new \App\Indexes\Videos();
 //$res = $v->exist();
 //var_dump($res);
 
+// Is this for kinda testing purposes?
+// BTW (and for the future): this library MUST have full test coverage before we go live with excited
+// But this is just FYI
 
 $params = [
     'tube' => 'analdin',

@@ -52,6 +52,10 @@ abstract class AbstractIndex
 
 
     /**
+     * Is this add single document into index?
+     * Lets try to have more than default IDE generated comments for these libraries
+     *
+     * @see there is `see` tag where you can put API documentation url here and there
      * @param $data
      * @param $params
      * @return bool
@@ -160,6 +164,11 @@ abstract class AbstractIndex
 
             $results = $this->client->search($data);
 
+            /**
+             * @eugene
+             * We need to align about PHP versions we are using on our environments. This way we might
+             * use lang more effectively and be better engineers ЯХУХУЯХУ :)
+             */
             if ($results["hits"] && $results["hits"]["hits"]) {
                 return $results["hits"]["hits"];
             }
