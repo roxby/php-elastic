@@ -2,6 +2,21 @@
 
 namespace App\Indexes;
 
+/**
+ * Class AbstractIndex
+ * @package App\Indexes
+ *
+ *
+ * indexExists
+ * indexCreate
+ *
+ * add / bulkAdd
+ * search
+ * update
+ * delete
+
+ *
+ */
 
 abstract class AbstractIndex
 {
@@ -60,7 +75,7 @@ abstract class AbstractIndex
      * @param $params
      * @return bool
      */
-    public function add($data, $params = [])
+    public function add($data, $id = null)
     {
         try {
             $defaults = [
@@ -69,17 +84,22 @@ abstract class AbstractIndex
             ];
             $params = array_merge($params, $defaults);
 
-            $res = [
-                'index' => $params['index'],
-                'type' => $params['type'],
-                'body' => $data
+            $query = [
+                'index' => $params['index'], // is this index name?
+                'type' => $params['type'], // hardcoded _doc
+                'body' => $data,
             ];
-            if (isset($data['id'])) {
-                $res['id'] = $data['id'];
+            if ($id) {
+                $query['id'] = $id;
             }
-            $response = $this->client->index($res);
+            if (isset($data['id'])) {
+                $query['id'] = $data['id'];
+            }
+            $response = $this->client->index($query);
             return !$response["errors"];
         } catch (\Exception $exception) {
+            // Read about errors handling in php packages (best practices)
+            // i am not sure that you are handling errors on package level
             error_log($exception->getMessage());
             return false;
         }
@@ -121,7 +141,7 @@ abstract class AbstractIndex
 
     }
 
-    public function update($data, $params)
+    public function update($id, $data, $params)
     {
         $defaults = [
             "type" => "_doc",

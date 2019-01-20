@@ -5,7 +5,7 @@ class Videos extends AbstractIndex
 {
     public $name = 'videos';
 
-    public $props_mapping = [
+    public $props_mapping = [ // index_mapping
         'video_id' => [
             'type' => 'integer',
         ],
@@ -52,6 +52,13 @@ class Videos extends AbstractIndex
         ]
     ];
 
+    /**
+     * For functions that receives open argument list - it's good idea to list possible params
+     * @param $params
+     * - size
+     * - tube ["analdin'
+     * @return array
+     */
     public function searchQuery($params)
     {
         $defaults = [
