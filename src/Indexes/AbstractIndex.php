@@ -60,11 +60,11 @@ abstract class AbstractIndex
 
 
     /**
-     * Add single document
+     *      * Add single document
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_indexing_documents.html - single doc indexing
      * @param $data
      * @param null $id
-     * @return bool
+     * @return array
      */
     public function add($data, $id = null)
     {
@@ -78,8 +78,8 @@ abstract class AbstractIndex
         if ($id) {
             $query['id'] = $id;
         }
-        $response = $this->client->index($query);
-        return !$response["errors"];
+        return $this->client->index($query);
+
 
     }
 
@@ -130,7 +130,7 @@ abstract class AbstractIndex
     }
 
     /**
-     * Delete single document
+     * Delete single document by id
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_deleting_documents.html
      * @param $id
      * @return array
@@ -143,6 +143,26 @@ abstract class AbstractIndex
             'id' => $id
         ];
         return $this->client->delete($params);
+    }
+
+    /**
+     * Delete single document by query
+     * @param $query array
+     * @return array
+     */
+    public function deleteByQuery($query)
+    {
+        $params = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'body' => [
+                'query' => [
+                    'match' => $query
+
+                ]
+            ]
+        ];
+        return $this->client->deleteByQuery($params);
     }
 
     /**
