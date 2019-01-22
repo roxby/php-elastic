@@ -1,11 +1,12 @@
 <?php
-namespace App\Indexes;
+
+namespace Roxby\Elastic\Indexes;
 
 class Videos extends AbstractIndex
 {
     public $name = 'videos';
 
-    public $props_mapping = [ // index_mapping
+    public $index_mapping = [
         'video_id' => [
             'type' => 'integer',
         ],
@@ -53,10 +54,14 @@ class Videos extends AbstractIndex
     ];
 
     /**
-     * For functions that receives open argument list - it's good idea to list possible params
+     * build search query
+     * filtered by tube name, should match search query, + possble add boost to certain fields
      * @param $params
-     * - size
-     * - tube ["analdin'
+     * - from integer
+     * - size integer
+     * - tube ["analdin', 'xozilla', 'vintagetube']
+     * - query string
+     * - fields array
      * @return array
      */
     public function searchQuery($params)
@@ -74,7 +79,7 @@ class Videos extends AbstractIndex
                     "filter" => [
                         "term" => ["tube" => $params["tube"]]
                     ],
-                    "should" => [
+                    "must" => [
                         ["multi_match" => [
                             "query" => isset($params["query"]) ? $params["query"] : '',
                             "fields" => isset($params["fields"]) ? $params["fields"] : [],

@@ -1,5 +1,5 @@
 <?php
-namespace App\Indexes;
+namespace Roxby\Elastic\Indexes;
 
 class Searches extends AbstractIndex
 {
