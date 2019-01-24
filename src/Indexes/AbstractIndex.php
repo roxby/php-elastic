@@ -9,10 +9,9 @@ abstract class AbstractIndex
     public $client;
     public $name;
 
-    public function __construct()
+    public function __construct($hosts = null)
     {
-        $config = include('../../config.php');
-        $this->client = \Elasticsearch\ClientBuilder::create()->setHosts($config['hosts'])->build();
+        $this->client = \Elasticsearch\ClientBuilder::create()->setHosts($hosts)->build();
     }
 
 
@@ -191,6 +190,15 @@ abstract class AbstractIndex
         return null;
 
 
+    }
+
+    /**
+     * explicitly refresh index, making all operations performed since the last refresh available for search
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/api-reference.html#api-indices-refresh
+     */
+    public function indexRefresh()
+    {
+        $this->client->indices()->refresh(['index' => $this->name]);
     }
 
     /**

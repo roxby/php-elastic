@@ -13,34 +13,51 @@ class VideosTest extends TestCase
         $this->videosIndex = new Roxby\Elastic\Indexes\Videos();
     }
 
-    public function testIndexExist()
+    public function testCrud()
+    {
+        $this->isIndexExist();
+        $this->addSingleDocument();
+        $this->updateSingleDocument();
+        $this->search();
+        $this->deleteSingleDocument();
+        $this->bulkAdd();
+        $this->deleteByQuery();
+    }
+
+    public function isIndexExist()
     {
         $this->assertTrue($this->videosIndex->indexExists());
     }
 
-    public function testAddSingleDocument()
+    public function refresh()
+    {
+        $this->videosIndex->indexRefresh();
+    }
+
+    public function addSingleDocument()
     {
         $data = [
-            'item_id' => 1233,
-            'title' => 'kukumuku',
-            'content' => 'kukumuku',
-            'duration' => 800,
-            'tube' => 'test'
+            'title' => 'foxes',
+            'description' => 'brown fox jumped over lazy dog',
+            'tube' => 'test',
+            'post_date' => '2014-01-12 00:00:00'
         ];
         $res = $this->videosIndex->add($data, 1);
         $this->assertTrue($res['result'] == 'created');
+        $this->refresh();
     }
 
-    public function testUpdateSingleDocument()
+    public function updateSingleDocument()
     {
         $data = [
-            'duration' => 1500
+            'post_date' => '2015-01-12 00:00:00'
         ];
         $res = $this->videosIndex->update($data, 1);
         $this->assertTrue($res['result'] == 'updated');
+        $this->refresh();
     }
 
-    public function testBulkAdd()
+    public function bulkAdd()
     {
         $params = [];
         $i = 0;
@@ -48,45 +65,47 @@ class VideosTest extends TestCase
             $params[] = [
                 'tube' => 'test',
                 'title' => 'lorem ipsum' . $i,
-                'content' => 'lorem ipsum dolor sit amet' . $i
+                'description' => 'lorem ipsum dolor sit amet' . $i,
+                "post_date" => "201$i-01-12 00:00:00"
             ];
             $i++;
 
         }
         $res = $this->videosIndex->bulkAdd($params);
         $this->assertTrue($res);
+        $this->refresh();
     }
 
-//    public function testSearch()
-//    {
-//        $incorrect = [
-//            'query' => "not existing query",
-//            'tube' => "test",
-//            'fields' => ["title", "content"]
-//        ];
-//        $res = $this->videosIndex->search($incorrect);
-//        $this->assertTrue(is_null($res));
-//
-//        $correct = [
-//            'query' => "kuku",
-//            'tube' => "test",
-//            'fields' => ["title", "content"]
-//        ];
-//        $res = $this->videosIndex->search($correct);
-//        $this->assertTrue(!is_null($res));
-//    }
+    public function search()
+    {
 
-    public function testDelete()
+        $existingQuery = "brown fox";
+        $notExistingQuery = "not existing query";
+        $tube = "test";
+        $params = [
+            'fields' => ["title" => 1, "description" => 3]
+        ];
+
+        $res = $this->videosIndex->search($existingQuery, $tube, $params);
+        $this->assertTrue(!is_null($res));
+
+
+        $res = $this->videosIndex->search($notExistingQuery, $tube, $params);
+        $this->assertTrue(is_null($res));
+    }
+
+
+    public function deleteSingleDocument()
     {
         $res = $this->videosIndex->delete(1);
         $this->assertTrue($res['result'] == 'deleted');
     }
 
-    public function testDeleteByQuery()
+    public function deleteByQuery()
     {
         $res = $this->videosIndex->deleteByQuery(['title' => 'lorem ipsum']);
         $this->assertTrue(isset($res['deleted']));
-        
+
         $this->assertTrue($res['deleted'] == 5);
     }
 }
