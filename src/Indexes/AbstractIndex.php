@@ -8,7 +8,6 @@ abstract class AbstractIndex
 
     public $client;
     public $name;
-    public $index_mapping;
 
     public function __construct()
     {
@@ -35,27 +34,32 @@ abstract class AbstractIndex
         $params = [
             'index' => $this->name,
             'body' => [
-                'settings' => [
-                    'analysis' => [
-                        'analyzer' => [
-                            "roxby_analyzer" => [
-                                "tokenizer" => "standard",
-                                //for plural forms
-                                //uses porter algorithm to cut word endings and suffixes
-                                "filter" => ["standard", "lowercase", "porter_stem"]]]
-                    ]],
                 'mappings' => [
                     '_doc' => [
                         '_source' => [
                             'enabled' => true
                         ],
-                        'properties' => $this->index_mapping
+                        'properties' => $this->getIndexMapping()
                     ]
                 ]
             ]
         ];
         $response = $this->client->indices()->create($params);
         return isset($response['acknowledged']) ? $response['acknowledged'] : false;
+    }
+
+    public function indexGetMapping()
+    {
+        if ($this->indexExists()) {
+            $params = [
+                'index' => $this->name,
+                'type' => '_doc',
+            ];
+            $res = $this->client->indices()->getMapping($params);
+            return isset($res[$this->name]['mappings']['_doc']['properties']) ? $res[$this->name]['mappings']['_doc']['properties'] : [];
+        }
+        return [];
+
     }
 
 
@@ -167,15 +171,17 @@ abstract class AbstractIndex
 
     /**
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_search_operations.html
-     * @param $data
+     * @param $query string
+     * @param $tube
+     * @param array $params
      * @return array|null
      */
-    public function search($data)
+    public function search($query, $tube, array $params = [])
     {
 
         $params = [
             'index' => $this->name,
-            'body' => $this->searchQuery($data)
+            'body' => $this->searchQuery($query, $tube, $params)
         ];
 
         $results = $this->client->search($params);
@@ -188,11 +194,18 @@ abstract class AbstractIndex
     }
 
     /**
+     * @return array of index properties
+     */
+    abstract function getIndexMapping();
+
+    /**
      * build search query, index specific
+     * @param $query string
+     * @param $tube
      * @param $params
      * @return array
      */
-    abstract public function searchQuery($params);
+    abstract public function searchQuery($query, $tube, array $params);
 
 }
 
