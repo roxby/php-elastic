@@ -30,6 +30,9 @@ abstract class AbstractIndex
      */
     public function indexCreate()
     {
+        if ($this->indexExists()) {
+            return false;
+        }
         $params = [
             'index' => $this->name,
             'body' => [

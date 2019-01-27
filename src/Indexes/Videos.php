@@ -6,6 +6,11 @@ class Videos extends AbstractIndex
 {
     public $name = 'videos';
 
+    /**
+     * indexing text fields twice: once with the english analyzer and once with the standard analyzer.
+     * @see https://qbox.io/blog/elasticsearch-english-analyzer-customize
+     * @return array
+     */
     public function getIndexMapping()
     {
         return [
