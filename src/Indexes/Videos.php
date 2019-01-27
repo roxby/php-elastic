@@ -182,4 +182,30 @@ class Videos extends AbstractIndex
         return $this->search($data);
 
     }
+
+    /**
+     * get last stored video
+     * @param $tube
+     * @return array|null
+     */
+    public function getLastStored($tube)
+    {
+        $params = [
+            'index' => $this->name,
+            'size' => 1,
+            'body' => [
+                'query' => [
+                    "bool" => [
+                        "filter" => ["term" => ["tube" => $tube]]
+                    ]
+                ],
+                "sort" => ['video_id' => ['order' => 'desc']]
+            ],
+        ];
+        $res = $this->search($params);
+        if ($res) {
+            return isset($res[0]['_source']) ? $res[0]['_source'] : null;
+        }
+        return null;
+    }
 }
