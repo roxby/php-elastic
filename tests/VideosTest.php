@@ -17,6 +17,7 @@ class VideosTest extends TestCase
     {
         $this->isIndexExist();
         $this->addSingleDocument();
+        $this->documentExist();
         $this->updateSingleDocument();
         $this->search();
         $this->deleteSingleDocument();
@@ -37,6 +38,7 @@ class VideosTest extends TestCase
     public function addSingleDocument()
     {
         $data = [
+            'video_id' => 123123,
             'title' => 'foxes',
             'description' => 'brown fox jumped over lazy dog',
             'tube' => 'test',
@@ -45,6 +47,12 @@ class VideosTest extends TestCase
         $res = $this->videosIndex->add($data, 1);
         $this->assertTrue($res['result'] == 'created');
         $this->refresh();
+    }
+
+    public function documentExist()
+    {
+        $res = $this->videosIndex->searchOne('test', 123123);
+        $this->assertTrue(!empty($res));
     }
 
     public function updateSingleDocument()
@@ -63,6 +71,7 @@ class VideosTest extends TestCase
         $i = 0;
         while ($i < 5) {
             $params[] = [
+                'video_id' => 12313 . $i,
                 'tube' => 'test',
                 'title' => 'lorem ipsum' . $i,
                 'description' => 'lorem ipsum dolor sit amet' . $i,
@@ -86,11 +95,11 @@ class VideosTest extends TestCase
             'fields' => ["title" => 1, "description" => 3]
         ];
 
-        $res = $this->videosIndex->search($existingQuery, $tube, $params);
+        $res = $this->videosIndex->searchMany($existingQuery, $tube, $params);
         $this->assertTrue(!is_null($res));
 
 
-        $res = $this->videosIndex->search($notExistingQuery, $tube, $params);
+        $res = $this->videosIndex->searchMany($notExistingQuery, $tube, $params);
         $this->assertTrue(is_null($res));
     }
 

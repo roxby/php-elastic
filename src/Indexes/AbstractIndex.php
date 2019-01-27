@@ -170,26 +170,16 @@ abstract class AbstractIndex
 
     /**
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_search_operations.html
-     * @param $query string
-     * @param $tube
      * @param array $params
      * @return array|null
      */
-    public function search($query, $tube, array $params = [])
+    public function search($params)
     {
-
-        $params = [
-            'index' => $this->name,
-            'body' => $this->searchQuery($query, $tube, $params)
-        ];
-
         $results = $this->client->search($params);
         if ($results["hits"] && $results["hits"]["hits"]) {
             return $results["hits"]["hits"];
         }
         return null;
-
-
     }
 
     /**
@@ -206,14 +196,6 @@ abstract class AbstractIndex
      */
     abstract function getIndexMapping();
 
-    /**
-     * build search query, index specific
-     * @param $query string
-     * @param $tube
-     * @param $params
-     * @return array
-     */
-    abstract public function searchQuery($query, $tube, array $params);
 
 }
 

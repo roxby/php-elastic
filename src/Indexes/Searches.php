@@ -10,7 +10,7 @@ class Searches extends AbstractIndex
         // TODO: Implement getIndexMapping() method.
     }
 
-    public function searchQuery($query, $tube, array $params = [])
+    public function searchMany($query, $tube, array $params = [])
     {
         // TODO: Implement searchQuery() method.
     }

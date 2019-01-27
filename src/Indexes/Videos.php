@@ -63,8 +63,8 @@ class Videos extends AbstractIndex
     }
 
     /**
-     * build search query
-     * filtered by tube name, should match search query, + possible add boost to certain fields
+     * perform search
+     * build query filtered by tube name, should match search query, + possible add boost to certain fields
      * @param $query string - search query
      * @param $tube string ["analdin', 'xozilla', 'vintagetube']
      * @param $params
@@ -74,7 +74,7 @@ class Videos extends AbstractIndex
      * @return array
      */
 
-    public function searchQuery($query, $tube, array $params = [])
+    public function searchMany($query, $tube, array $params = [])
     {
         $defaults = [
             "from" => 0,
@@ -86,7 +86,7 @@ class Videos extends AbstractIndex
             $fieldsArr = $this->buildSearchFields($params['fields']);
         } else {
             //defaults
-            $fieldsArr =  [
+            $fieldsArr = [
                 "title^3",
                 "title.english^3",
                 "cats^10",
@@ -97,7 +97,7 @@ class Videos extends AbstractIndex
                 "models.english"
             ];
         }
-        return [
+        $body = [
             "from" => $params['from'],
             "size" => $params['size'],
             "query" => [
@@ -122,6 +122,12 @@ class Videos extends AbstractIndex
             ]
 
         ];
+
+        $data = [
+            'index' => $this->name,
+            'body' => $body
+        ];
+        return $this->search($data);
     }
 
     /**
@@ -146,5 +152,29 @@ class Videos extends AbstractIndex
             }
         }
         return $result;
+    }
+
+    /**
+     * search one video filtered by tube + video id
+     * @param $tube
+     * @param $video_id
+     * @return array|null
+     */
+    public function searchOne($tube, $video_id)
+    {
+        $body = ["query" => [
+            "bool" => [
+                "must" => [
+                    ["term" => ["tube" => $tube]],
+                    ["term" => ["video_id" => $video_id]]
+                ]
+            ]
+        ]];
+        $data = [
+            "index" => $this->name,
+            "body" => $body
+        ];
+        return $this->search($data);
+
     }
 }
