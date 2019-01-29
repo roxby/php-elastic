@@ -9,13 +9,9 @@ abstract class AbstractIndex
     public $client;
     public $name;
 
-    public function __construct()
+    public function __construct($hosts)
     {
-        $this->client = \Elasticsearch\ClientBuilder::create()->setHosts([
-            'host' => 'localhost',
-            'port' => '9200',
-            'scheme' => 'http'
-        ])->build();
+        $this->client = \Elasticsearch\ClientBuilder::create()->setHosts($hosts)->build();
     }
 
 
