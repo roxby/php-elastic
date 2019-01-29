@@ -12,7 +12,7 @@ abstract class AbstractIndex
     public function __construct($hosts = [])
     {
         if(empty($hosts)) {
-            $hosts[] = ['host' => 'localhost'];
+            $hosts[] = 'http://localhost';
         }
         $this->client = \Elasticsearch\ClientBuilder::create()->setHosts($hosts)->build();
     }
