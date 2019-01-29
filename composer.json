@@ -1,5 +1,5 @@
 {
-  "name": "roxby/elastical",
+  "name": "roxby/elastic",
   "require": {
     "elasticsearch/elasticsearch": "~6.0"
   },
