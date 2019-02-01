@@ -6,6 +6,17 @@ class Videos extends AbstractIndex
 {
     public $name = 'videos';
 
+    public $fields = [
+        "title^3",
+        "title.english^3",
+        "cats^10",
+        "cats.english^10",
+        "tags",
+        "tags.english",
+        "models",
+        "models.english"
+    ];
+
     /**
      * indexing text fields twice: once with the english analyzer and once with the standard analyzer.
      * @see https://qbox.io/blog/elasticsearch-english-analyzer-customize
@@ -91,16 +102,7 @@ class Videos extends AbstractIndex
             $fieldsArr = $this->buildSearchFields($params['fields']);
         } else {
             //defaults
-            $fieldsArr = [
-                "title^3",
-                "title.english^3",
-                "cats^10",
-                "cats.english^10",
-                "tags",
-                "tags.english",
-                "models",
-                "models.english"
-            ];
+            $fieldsArr = $this->fields;
         }
         $body = [
             "from" => $params['from'],
@@ -208,4 +210,37 @@ class Videos extends AbstractIndex
         }
         return null;
     }
+
+
+    /**
+     * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-count.html
+     * @param $query
+     * @param $tube
+     * @return array
+     */
+    public function count($query, $tube)
+    {
+        $params = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'body' => [
+                "query" => [
+                    "bool" => [
+                        "must" => [
+                            "multi_match" => [
+                                "query" => $query,
+                                "fields" => $this->fields
+                            ]
+
+                        ],
+                        "filter" => [
+                            "term" => ["tube" => $tube]
+                        ],
+                    ]
+
+                ]]];
+        $res = $this->client->count($params);
+        return isset($res["count"]) ? $res["count"] : 0;
+    }
+
 }
