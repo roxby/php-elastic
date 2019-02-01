@@ -180,7 +180,11 @@ abstract class AbstractIndex
     {
         $results = $this->client->search($params);
         if ($results["hits"] && $results["hits"]["hits"]) {
-            return $results["hits"]["hits"];
+            $results = $results["hits"]["hits"];
+            $sources = array_map(function ($res) {
+                return $res["_source"];
+            }, $results);
+            return $sources;
         }
         return null;
     }
