@@ -74,7 +74,7 @@ class VideosTest extends TestCase
             $params[] = [
                 'video_id' => 12313 . $i,
                 'tube' => 'test',
-                'title' => 'lorem ipsum ' . $i,
+                'title' => 'lorem ipsum',
                 'description' => 'lorem ipsum dolor sit amet' . $i,
                 "post_date" => "201$i-01-12 00:00:00"
             ];
@@ -119,9 +119,8 @@ class VideosTest extends TestCase
 
     public function deleteByQuery()
     {
-        $res = $this->videosIndex->deleteByQuery(['title' => 'lorem ipsum']);
+        $res = $this->videosIndex->deleteByQuery('test', ['title' => 'lorem ipsum']);
         $this->assertTrue(isset($res['deleted']));
-
         $this->assertTrue($res['deleted'] == 5);
     }
 }
