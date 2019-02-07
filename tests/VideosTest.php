@@ -46,14 +46,14 @@ class VideosTest extends TestCase
             'post_date' => '2014-01-12 00:00:00'
         ];
         $res = $this->videosIndex->add($data, 1);
-        $this->assertTrue($res['result'] == 'created');
+        $this->assertEquals('created', $res['result']);
         $this->refresh();
     }
 
     public function documentExist()
     {
         $res = $this->videosIndex->searchOne('test', 123123);
-        $this->assertTrue(!empty($res));
+        $this->assertTrue(!is_null($res));
     }
 
     public function updateSingleDocument()
@@ -62,7 +62,7 @@ class VideosTest extends TestCase
             'post_date' => '2015-01-12 00:00:00'
         ];
         $res = $this->videosIndex->update($data, 1);
-        $this->assertTrue($res['result'] == 'updated');
+        $this->assertEquals('updated', $res['result']);
         $this->refresh();
     }
 
@@ -108,19 +108,18 @@ class VideosTest extends TestCase
     {
         $count = $this->videosIndex->count('test', 'lorem ipsum');
         $this->assertTrue(is_numeric($count));
-        $this->assertTrue($count == 5);
+        $this->assertEquals(5, $count);
     }
 
     public function deleteSingleDocument()
     {
         $res = $this->videosIndex->delete(1);
-        $this->assertTrue($res['result'] == 'deleted');
+        $this->assertEquals('deleted', $res['result']);
     }
 
     public function deleteByQuery()
     {
         $res = $this->videosIndex->deleteByQuery('test', ['title' => 'lorem ipsum']);
-        $this->assertTrue(isset($res['deleted']));
-        $this->assertTrue($res['deleted'] == 5);
+        $this->assertEquals(5, $res['deleted']);
     }
 }
