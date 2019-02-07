@@ -87,6 +87,8 @@ class Videos extends AbstractIndex
      * - from integer
      * - size integer
      * - fields assoc array of search fields [field1 => 1, field2 => 3, field3 => 10]
+     * - min integer - minimum duration
+     * - max integer - maximum duration
      * @return array
      */
 
@@ -114,27 +116,56 @@ class Videos extends AbstractIndex
                             "query" => $query,
                             "fields" => $fieldsArr
                         ]
-
                     ],
-                    "filter" => [
-                        "term" => ["tube" => $tube]
-                    ],
+                    "filter" => $this->getFilter($tube, $params)
                 ]
-
             ],
             "sort" => [
                 "post_date" => [
                     "order" => "desc"
                 ]
             ]
-
         ];
-
         $data = [
             'index' => $this->name,
             'body' => $body
         ];
         return $this->search($data);
+    }
+
+    /**
+     * build query filter
+     * - search for specific tube
+     * - if duration params are set - search within duration range
+     * @param $tube
+     * @param $params
+     * @return array
+     */
+    public function getFilter($tube, $params)
+    {
+
+        $filter = [];
+        $filter[] = ["term" => ["tube" => $tube]];
+
+        if (isset($params["min"]) || isset($params["max"])) {
+            $duration = [];
+            if (isset($params["min"])) {
+                $duration["gt"] = $params["min"];
+            }
+            if (isset($params["max"])) {
+                $duration["lte"] = $params["max"];
+            }
+            $range = [
+                "bool" => [
+                    "should" => [
+                        "range" => ["duration" => $duration]
+                    ]
+                ]
+            ];
+            $filter[] = $range;
+
+        }
+        return $filter;
     }
 
     /**
