@@ -153,18 +153,25 @@ abstract class AbstractIndex
 
     /**
      * Delete single document by query
+     * @param $tube string
      * @param $query array
      * @return array
      */
-    public function deleteByQuery($query)
+    public function deleteByQuery($tube, $query)
     {
         $params = [
             'index' => $this->name,
             'type' => '_doc',
             'body' => [
-                'query' => [
-                    'match' => $query
-
+                "query" => [
+                    "bool" => [
+                        "must" => [
+                            "match" => $query
+                        ],
+                        "filter" => [
+                            "term" => ["tube" => $tube]
+                        ],
+                    ]
                 ]
             ]
         ];
