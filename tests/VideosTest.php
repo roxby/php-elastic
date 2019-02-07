@@ -10,7 +10,7 @@ class VideosTest extends TestCase
     public function __construct($name = null, array $data = [], $dataName = '')
     {
         parent::__construct($name, $data, $dataName);
-        $this->videosIndex = new Roxby\Elastic\Indexes\Videos();
+        $this->videosIndex = new Roxby\Elastic\Indexes\Videos(['localhost:9200']);
     }
 
     public function testCrud()
@@ -22,6 +22,7 @@ class VideosTest extends TestCase
         $this->search();
         $this->deleteSingleDocument();
         $this->bulkAdd();
+        $this->documentsCount();
         $this->deleteByQuery();
     }
 
@@ -73,7 +74,7 @@ class VideosTest extends TestCase
             $params[] = [
                 'video_id' => 12313 . $i,
                 'tube' => 'test',
-                'title' => 'lorem ipsum' . $i,
+                'title' => 'lorem ipsum ' . $i,
                 'description' => 'lorem ipsum dolor sit amet' . $i,
                 "post_date" => "201$i-01-12 00:00:00"
             ];
@@ -95,14 +96,20 @@ class VideosTest extends TestCase
             'fields' => ["title" => 1, "description" => 3]
         ];
 
-        $res = $this->videosIndex->searchMany($existingQuery, $tube, $params);
+        $res = $this->videosIndex->searchMany($tube, $existingQuery, $params);
         $this->assertTrue(!is_null($res));
 
 
-        $res = $this->videosIndex->searchMany($notExistingQuery, $tube, $params);
+        $res = $this->videosIndex->searchMany($tube, $notExistingQuery, $params);
         $this->assertTrue(is_null($res));
     }
 
+    public function documentsCount()
+    {
+        $count = $this->videosIndex->count('test', 'lorem ipsum');
+        $this->assertTrue(is_numeric($count));
+        $this->assertTrue($count == 5);
+    }
 
     public function deleteSingleDocument()
     {

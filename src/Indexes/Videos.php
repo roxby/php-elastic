@@ -81,8 +81,8 @@ class Videos extends AbstractIndex
     /**
      * perform search
      * build query filtered by tube name, should match search query, + possible add boost to certain fields
-     * @param $query string - search query
      * @param $tube string ["analdin', 'xozilla', 'vintagetube']
+     * @param $query string - search query
      * @param $params
      * - from integer
      * - size integer
@@ -90,7 +90,7 @@ class Videos extends AbstractIndex
      * @return array
      */
 
-    public function searchMany($query, $tube, array $params = [])
+    public function searchMany($tube, $query, array $params = [])
     {
         $defaults = [
             "from" => 0,
@@ -214,11 +214,11 @@ class Videos extends AbstractIndex
 
     /**
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-count.html
-     * @param $query
      * @param $tube
-     * @return array
+     * @param $query
+     * @return integer
      */
-    public function count($query, $tube)
+    public function count($tube, $query)
     {
         $params = [
             'index' => $this->name,
