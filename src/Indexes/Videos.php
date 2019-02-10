@@ -64,6 +64,9 @@ class Videos extends AbstractIndex
             ],
             'tube' => [
                 'type' => 'keyword'
+            ],
+            'deleted' => [
+                'type' => 'boolean'
             ]
         ];
     }
@@ -80,7 +83,8 @@ class Videos extends AbstractIndex
 
     /**
      * perform search
-     * build query filtered by tube name, should match search query, + possible add boost to certain fields
+     * build query filtered by tube name, duration range
+     * must match search query, + possible add boost to certain fields
      * @param $tube string ["analdin', 'xozilla', 'vintagetube']
      * @param $query string - search query
      * @param $params
@@ -112,12 +116,21 @@ class Videos extends AbstractIndex
             "query" => [
                 "bool" => [
                     "must" => [
-                        "multi_match" => [
+                        ["multi_match" => [
                             "query" => $query,
                             "fields" => $fieldsArr
                         ]
+                        ],
+                        ["range" => [
+                            "duration" => [
+                                "gt" => isset($params["min"]) ? $params["min"] : 0,
+                                "lte" => isset($params["max"]) ? $params["max"] : 10000000
+                            ]
+                        ]
+                        ]
                     ],
-                    "filter" => $this->getFilter($tube, $params)
+                    "filter" => ["term" => ["tube" => $tube]],
+                    "must_not" => ["match" => ["deleted" => true]],
                 ]
             ],
             "sort" => [
@@ -133,40 +146,6 @@ class Videos extends AbstractIndex
         return $this->search($data);
     }
 
-    /**
-     * build query filter
-     * - search for specific tube
-     * - if duration params are set - search within duration range
-     * @param $tube
-     * @param $params
-     * @return array
-     */
-    public function getFilter($tube, $params)
-    {
-
-        $filter = [];
-        $filter[] = ["term" => ["tube" => $tube]];
-
-        if (isset($params["min"]) || isset($params["max"])) {
-            $duration = [];
-            if (isset($params["min"])) {
-                $duration["gt"] = $params["min"];
-            }
-            if (isset($params["max"])) {
-                $duration["lte"] = $params["max"];
-            }
-            $range = [
-                "bool" => [
-                    "should" => [
-                        "range" => ["duration" => $duration]
-                    ]
-                ]
-            ];
-            $filter[] = $range;
-
-        }
-        return $filter;
-    }
 
     /**
      * Build array of search fields
@@ -192,6 +171,41 @@ class Videos extends AbstractIndex
         return $result;
     }
 
+    public function setDeleted($tube, $video_id, $isDeleted = true)
+    {
+        $body = $this->findOneQuery($tube, $video_id);
+        $body["script"] = [
+            "inline" => "ctx._source.deleted=params.deleted;",
+            "params" => [
+                "deleted" => $isDeleted,
+            ]
+        ];
+
+        $params = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'body' => $body
+        ];
+        $res = $this->client->updateByQuery($params);
+        return isset($res["updated"]) ? $res["updated"] : 0;
+
+
+    }
+
+
+    public function findOneQuery($tube, $video_id)
+    {
+        return [
+            "query" => [
+                "bool" => [
+                    "must" => [
+                        ["term" => ["tube" => $tube]],
+                        ["term" => ["video_id" => $video_id]]
+                    ]
+                ]
+            ]];
+    }
+
     /**
      * search one video filtered by tube + video id
      * @param $tube
@@ -200,19 +214,13 @@ class Videos extends AbstractIndex
      */
     public function searchOne($tube, $video_id)
     {
-        $body = ["query" => [
-            "bool" => [
-                "must" => [
-                    ["term" => ["tube" => $tube]],
-                    ["term" => ["video_id" => $video_id]]
-                ]
-            ]
-        ]];
+        $body = $this->findOneQuery($tube, $video_id);
         $data = [
             "index" => $this->name,
             "body" => $body
         ];
-        return $this->search($data);
+        $res = $this->search($data);
+        return count($res) ? $res[0] : null;
 
     }
 
