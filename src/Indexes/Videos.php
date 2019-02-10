@@ -220,7 +220,7 @@ class Videos extends AbstractIndex
             "body" => $body
         ];
         $res = $this->search($data);
-        return count($res) ? $res[0] : null;
+        return $res && count($res) ? $res[0] : null;
 
     }
 
