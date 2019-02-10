@@ -165,8 +165,8 @@ class Searches extends AbstractIndex
             "type" => "_doc",
             "body" => $body
         ];
-        return $this->search($data);
-
+        $res = $this->search($data);
+        return count($res) ? $res[0] : null;
     }
 
     /**
