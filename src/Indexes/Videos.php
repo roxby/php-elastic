@@ -104,31 +104,13 @@ class Videos extends AbstractIndex
         ];
         $params = array_merge($defaults, $params);
 
-        if (isset($params['fields'])) {
-            $fieldsArr = $this->buildSearchFields($params['fields']);
-        } else {
-            //defaults
-            $fieldsArr = $this->fields;
-        }
+        $mustRule = $this->buildMustRule($query, $params);
         $body = [
             "from" => $params['from'],
             "size" => $params['size'],
             "query" => [
                 "bool" => [
-                    "must" => [
-                        ["multi_match" => [
-                            "query" => $query,
-                            "fields" => $fieldsArr
-                        ]
-                        ],
-                        ["range" => [
-                            "duration" => [
-                                "gt" => isset($params["min"]) ? $params["min"] : 0,
-                                "lte" => isset($params["max"]) ? $params["max"] : 10000000
-                            ]
-                        ]
-                        ]
-                    ],
+                    "must" => $mustRule,
                     "filter" => ["term" => ["tube" => $tube]],
                     "must_not" => ["match" => ["deleted" => true]],
                 ]
@@ -172,6 +154,44 @@ class Videos extends AbstractIndex
     }
 
     /**
+     * build must rule to add to search query
+     * Query must match to at least one of the fields (sent or defaults)
+     * Also if duration params are sent - must search within duration range
+     * @param $query string
+     * @param $params array
+     * - fields assoc array of search fields [field1 => 1, field2 => 3, field3 => 10]
+     * - min integer - minimum duration
+     * - max integer - maximum duration
+     * @return array
+     */
+    public function buildMustRule($query, $params = [])
+    {
+
+        $fieldsArr = isset($params["fields"]) ? $this->buildSearchFields($params['fields']) : $this->fields;
+        $mustRule = [
+            [
+                "multi_match" => [
+                    "query" => $query,
+                    "fields" => $fieldsArr
+                ]
+
+            ]
+        ];
+        if (!empty($params) && (isset($params['min']) || isset($params['max']))) {
+            $range = [
+                "range" => [
+                    "duration" => [
+                        "gt" => isset($params["min"]) ? $params["min"] : 0,
+                        "lte" => isset($params["max"]) ? $params["max"] : 10000000
+                    ]
+                ]
+            ];
+            $mustRule[] = $range;
+        }
+        return $mustRule;
+    }
+
+    /**
      * mark video as deleted
      * @param $id
      * @return bool
@@ -180,8 +200,6 @@ class Videos extends AbstractIndex
     {
         return $this->update(["deleted" => true], $id);
     }
-
-
 
 
     /**
@@ -215,30 +233,26 @@ class Videos extends AbstractIndex
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-count.html
      * @param $tube
      * @param $query
-     * @return integer
+     * @param array $params
+     * @return int
      */
-    public function countHavingQuery($tube, $query)
+    public function countHavingQuery($tube, $query, $params = [])
     {
-        $params = [
+        $data = [
             'index' => $this->name,
             'type' => '_doc',
             'body' => [
                 "query" => [
                     "bool" => [
-                        "must" => [
-                            "multi_match" => [
-                                "query" => $query,
-                                "fields" => $this->fields
-                            ]
-
-                        ],
+                        "must" => $this->buildMustRule($query, $params),
                         "filter" => [
                             "term" => ["tube" => $tube]
                         ],
+                        "must_not" => ["match" => ["deleted" => true]],
                     ]
 
                 ]]];
-        $res = $this->client->count($params);
+        $res = $this->client->count($data);
         return isset($res["count"]) ? $res["count"] : 0;
     }
 
