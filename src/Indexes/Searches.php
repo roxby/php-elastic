@@ -83,7 +83,7 @@ class Searches extends AbstractIndex
      * Update document if exist,  otherwise create new
      * @param $tube
      * @param $query
-     * @return array|int
+     * @return bool
      */
     public function updateOrCreate($tube, $query)
     {
@@ -170,11 +170,12 @@ class Searches extends AbstractIndex
     }
 
     /**
-     * get searches count  filtered by tube name
      * @param $tube
-     * @return int
+     * @param $query
+     * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
+     * @return integer
      */
-    public function count($tube)
+    public function deleteByQuery($tube, $query)
     {
         $params = [
             'index' => $this->name,
@@ -182,14 +183,18 @@ class Searches extends AbstractIndex
             'body' => [
                 "query" => [
                     "bool" => [
+                        "must" => [
+                            "match" => ["alias" => $this->normalizeQuery($query)]
+                        ],
                         "filter" => [
                             "term" => ["tube" => $tube]
                         ],
                     ]
-
-                ]]];
-        $res = $this->client->count($params);
-        return isset($res["count"]) ? $res["count"] : 0;
+                ]
+            ]
+        ];
+        $res = $this->client->deleteByQuery($params);
+        return isset($res["deleted"]) ? $res["deleted"] : 0;
     }
 
 }
