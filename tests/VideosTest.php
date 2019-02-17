@@ -7,6 +7,11 @@ class VideosTest extends TestCase
 
     public $videosIndex;
 
+    public $singleVideoId = 1;
+    public $bulkIds = [2, 3, 4, 5, 6];
+
+    public $tube = "test";
+
     public function __construct($name = null, array $data = [], $dataName = '')
     {
         parent::__construct($name, $data, $dataName);
@@ -17,13 +22,12 @@ class VideosTest extends TestCase
     {
         $this->isIndexExist();
         $this->addSingleDocument();
-        $this->documentExist();
         $this->updateSingleDocument();
+        $this->getDocument();
         $this->search();
-        $this->deleteSingleDocument();
         $this->bulkAdd();
         $this->documentsCount();
-        $this->deleteByQuery();
+        $this->deleteDocuments();
     }
 
     public function isIndexExist()
@@ -38,48 +42,56 @@ class VideosTest extends TestCase
 
     public function addSingleDocument()
     {
+        $uid = $this->buildUid();
+
         $data = [
-            'video_id' => 123123,
+            'video_id' => $this->singleVideoId,
             'title' => 'foxes',
             'description' => 'brown fox jumped over lazy dog',
-            'tube' => 'test',
-            'post_date' => '2014-01-12 00:00:00'
+            'tube' => $this->tube,
+            'post_date' => '2014-01-12 00:00:00',
+            'duration' => 500
         ];
-        $res = $this->videosIndex->add($data, 1);
-        $this->assertEquals('created', $res['result']);
+        $res = $this->videosIndex->add($data, $uid);
+        $this->assertTrue($res);
         $this->refresh();
     }
 
-    public function documentExist()
+
+    public function getDocument()
     {
-        $res = $this->videosIndex->searchOne('test', 123123);
+        $uid = $this->buildUid();
+        $res = $this->videosIndex->get($uid);
         $this->assertTrue(!is_null($res));
+        $this->assertEquals($this->singleVideoId, $res["video_id"]);
+        $this->assertEquals($this->tube, $res["tube"]);
     }
 
     public function updateSingleDocument()
     {
+        $uid = $this->buildUid();
         $data = [
             'post_date' => '2015-01-12 00:00:00'
         ];
-        $res = $this->videosIndex->update($data, 1);
-        $this->assertEquals('updated', $res['result']);
+        $res = $this->videosIndex->update($data, $uid);
+        $this->assertTrue($res);
         $this->refresh();
     }
 
     public function bulkAdd()
     {
         $params = [];
-        $i = 0;
-        while ($i < 5) {
+        for ($i = 0; $i < count($this->bulkIds); $i++) {
+            $vid = $this->bulkIds[$i];
             $params[] = [
-                'video_id' => 12313 . $i,
-                'tube' => 'test',
+                'video_id' => $vid,
+                'tube' => $this->tube,
                 'title' => 'lorem ipsum',
-                'description' => 'lorem ipsum dolor sit amet' . $i,
-                "post_date" => "201$i-01-12 00:00:00"
+                'description' => 'lorem ipsum dolor sit amet',
+                "post_date" => "2015-01-12 00:00:00",
+                "duration" => 400,
+                "uid" => $this->buildUid($vid)
             ];
-            $i++;
-
         }
         $res = $this->videosIndex->bulkAdd($params);
         $this->assertTrue($res);
@@ -91,35 +103,52 @@ class VideosTest extends TestCase
 
         $existingQuery = "brown fox";
         $notExistingQuery = "not existing query";
-        $tube = "test";
         $params = [
             'fields' => ["title" => 1, "description" => 3]
         ];
 
-        $res = $this->videosIndex->searchMany($tube, $existingQuery, $params);
+        $res = $this->videosIndex->searchMany($this->tube, $existingQuery, $params);
         $this->assertTrue(!is_null($res));
 
 
-        $res = $this->videosIndex->searchMany($tube, $notExistingQuery, $params);
+        $res = $this->videosIndex->searchMany($this->tube, $notExistingQuery, $params);
         $this->assertTrue(is_null($res));
     }
 
     public function documentsCount()
     {
-        $count = $this->videosIndex->count('test', 'lorem ipsum');
+        $count = $this->videosIndex->count($this->tube, 'lorem ipsum');
         $this->assertTrue(is_numeric($count));
         $this->assertEquals(5, $count);
     }
 
-    public function deleteSingleDocument()
+    public function deleteDocuments()
     {
-        $res = $this->videosIndex->delete(1);
-        $this->assertEquals('deleted', $res['result']);
+        //delete first added document
+        $uid = $this->buildUid();
+        $res = $this->videosIndex->delete($uid);
+        $this->assertTrue($res);
+
+        //delete 5 bulk added documents
+        for ($i = 0; $i < count($this->bulkIds); $i++) {
+            $uid = $this->buildUid($this->bulkIds[$i]);
+            $this->videosIndex->delete($uid);
+        }
+        $this->videosIndex->indexRefresh();
+
+        $count = $this->videosIndex->getTotal($this->tube);
+        $this->assertEquals(0, $count);
+
+
+
     }
 
-    public function deleteByQuery()
+    private function buildUid($vid = null)
     {
-        $res = $this->videosIndex->deleteByQuery('test', ['title' => 'lorem ipsum']);
-        $this->assertEquals(5, $res['deleted']);
+        if (!$vid) {
+            $vid = $this->singleVideoId;
+        }
+        return $this->tube . "-" . $vid;
     }
+
 }
