@@ -235,7 +235,7 @@ abstract class AbstractIndex
      * @param $tube
      * @return integer
      */
-    public function getTotal($tube)
+    public function count($tube)
     {
         $params = [
             'index' => $this->name,

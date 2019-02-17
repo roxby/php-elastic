@@ -117,7 +117,7 @@ class VideosTest extends TestCase
 
     public function documentsCount()
     {
-        $count = $this->videosIndex->count($this->tube, 'lorem ipsum');
+        $count = $this->videosIndex->countHavingQuery($this->tube, 'lorem ipsum');
         $this->assertTrue(is_numeric($count));
         $this->assertEquals(5, $count);
     }
@@ -136,7 +136,7 @@ class VideosTest extends TestCase
         }
         $this->videosIndex->indexRefresh();
 
-        $count = $this->videosIndex->getTotal($this->tube);
+        $count = $this->videosIndex->count($this->tube);
         $this->assertEquals(0, $count);
 
 
