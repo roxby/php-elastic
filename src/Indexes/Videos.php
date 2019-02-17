@@ -171,58 +171,18 @@ class Videos extends AbstractIndex
         return $result;
     }
 
-    public function setDeleted($tube, $video_id, $isDeleted = true)
-    {
-        $body = $this->findOneQuery($tube, $video_id);
-        $body["script"] = [
-            "inline" => "ctx._source.deleted=params.deleted;",
-            "params" => [
-                "deleted" => $isDeleted,
-            ]
-        ];
-
-        $params = [
-            'index' => $this->name,
-            'type' => '_doc',
-            'body' => $body
-        ];
-        $res = $this->client->updateByQuery($params);
-        return isset($res["updated"]) ? $res["updated"] : 0;
-
-
-    }
-
-
-    public function findOneQuery($tube, $video_id)
-    {
-        return [
-            "query" => [
-                "bool" => [
-                    "must" => [
-                        ["term" => ["tube" => $tube]],
-                        ["term" => ["video_id" => $video_id]]
-                    ]
-                ]
-            ]];
-    }
-
     /**
-     * search one video filtered by tube + video id
-     * @param $tube
-     * @param $video_id
-     * @return array|null
+     * mark video as deleted
+     * @param $id
+     * @return bool
      */
-    public function searchOne($tube, $video_id)
+    public function setDeleted($id)
     {
-        $body = $this->findOneQuery($tube, $video_id);
-        $data = [
-            "index" => $this->name,
-            "body" => $body
-        ];
-        $res = $this->search($data);
-        return $res && count($res) ? $res[0] : null;
-
+        return $this->update(["deleted" => true], $id);
     }
+
+
+
 
     /**
      * get last stored video
@@ -257,7 +217,7 @@ class Videos extends AbstractIndex
      * @param $query
      * @return integer
      */
-    public function count($tube, $query)
+    public function countHavingQuery($tube, $query)
     {
         $params = [
             'index' => $this->name,
