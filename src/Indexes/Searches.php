@@ -48,7 +48,7 @@ class Searches extends AbstractIndex
             "from" => 0,
             "size" => 100
         ];
-        $params = array_merge($params, $defaults);
+        $params = array_merge($defaults, $params);
         $body = [
             "from" => $params['from'],
             "size" => $params['size'],

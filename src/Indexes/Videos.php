@@ -102,7 +102,7 @@ class Videos extends AbstractIndex
             "from" => 0,
             "size" => 100
         ];
-        $params = array_merge($params, $defaults);
+        $params = array_merge($defaults, $params);
 
         if (isset($params['fields'])) {
             $fieldsArr = $this->buildSearchFields($params['fields']);
