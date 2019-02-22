@@ -274,12 +274,16 @@ abstract class AbstractIndex
     {
         try {
             $results = $this->client->search($params);
-            if ($results["hits"] && $results["hits"]["hits"]) {
-                $results = $results["hits"]["hits"];
+            if ($results["hits"]) {
+                $results = $results["hits"];
                 $sources = array_map(function ($res) {
                     return $res["_source"];
-                }, $results);
-                return $sources;
+                }, $results["hits"]);
+
+                return [
+                   "data" => $sources,
+                    "total" => $results["total"]
+                ];
             }
             return null;
         } catch (\Exception $exception) {
