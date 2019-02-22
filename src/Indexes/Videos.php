@@ -245,32 +245,4 @@ class Videos extends AbstractIndex
         return null;
     }
 
-
-    /**
-     * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-count.html
-     * @param $tube
-     * @param $query
-     * @param array $params
-     * @return int
-     */
-    public function countHavingQuery($tube, $query, $params = [])
-    {
-        $data = [
-            'index' => $this->name,
-            'type' => '_doc',
-            'body' => [
-                "query" => [
-                    "bool" => [
-                        "must" => $this->buildMustRule($query, $params),
-                        "filter" => [
-                            "term" => ["tube" => $tube]
-                        ],
-                        "must_not" => ["match" => ["deleted" => true]],
-                    ]
-
-                ]]];
-        $res = $this->client->count($data);
-        return isset($res["count"]) ? $res["count"] : 0;
-    }
-
 }
