@@ -22,9 +22,8 @@ class VideosTest extends TestCase
         $this->addSingleDocument();
         $this->updateSingleDocument();
         $this->getDocument();
-        $this->search();
         $this->bulkAdd();
-        $this->documentsCount();
+        $this->search();
         $this->deleteSingleDocument();
         $this->bulkDelete();
     }
@@ -96,24 +95,27 @@ class VideosTest extends TestCase
 
     public function search()
     {
+        //find one
         $existingQuery = "brown fox";
         $notExistingQuery = "not existing query";
         $params = [
             'fields' => ["title" => 1, "description" => 3]
         ];
         $res = $this->videosIndex->searchMany($this->tube, $existingQuery, $params);
-        $this->assertTrue(!is_null($res));
+        $this->assertTrue(!empty($res['data']));
+        $this->assertEquals(1, $res['total']);
 
 
+        //find 0
         $res = $this->videosIndex->searchMany($this->tube, $notExistingQuery, $params);
-        $this->assertTrue(is_null($res));
-    }
+        $this->assertTrue(empty($res['data']));
+        $this->assertEquals(0, $res['total']);
 
-    public function documentsCount()
-    {
-        $count = $this->videosIndex->countHavingQuery($this->tube, 'lorem ipsum');
-        $this->assertTrue(is_numeric($count));
-        $this->assertEquals(5, $count);
+        //find 5
+        $res = $this->videosIndex->searchMany($this->tube, 'lorem ipsum', $params);
+        $this->assertTrue(!empty($res['data']));
+        $this->assertEquals(5, $res['total']);
+
     }
 
 
@@ -136,7 +138,7 @@ class VideosTest extends TestCase
 
         $this->videosIndex->indexRefresh();
 
-        $count = $this->videosIndex->count($this->tube);
+        $count = $this->videosIndex->countForTube($this->tube);
         $this->assertEquals(0, $count);
     }
 

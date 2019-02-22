@@ -69,8 +69,8 @@ class SearchesTest extends TestCase
         $this->searchesIndex->updateOrCreate($this->tube, $this->query_second);
         $this->refresh();
         $res = $this->searchesIndex->searchMany($this->tube, 'dog');
-        $this->assertTrue(!is_null($res));
-        $this->assertEquals(2, count($res));
+        $this->assertTrue(!empty($res['data']));
+        $this->assertEquals(2, $res['total']);
 
     }
     public function deleteByQuery()
@@ -84,7 +84,7 @@ class SearchesTest extends TestCase
 
         $this->searchesIndex->indexRefresh();
 
-        $count = $this->searchesIndex->count($this->tube);
+        $count = $this->searchesIndex->countForTube($this->tube);
         $this->assertEquals(0,$count);
     }
 }
