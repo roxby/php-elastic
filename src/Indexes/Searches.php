@@ -176,7 +176,10 @@ class Searches extends AbstractIndex
             "body" => $body
         ];
         $res = $this->search($data);
-        return $res && count($res) ? $res[0] : null;
+        if ($res && isset($res['data']) && !empty($res['data'])) {
+            return $res['data'][0];
+        }
+        return null;
     }
 
     /**
