@@ -33,7 +33,7 @@ class Videos extends AbstractIndex
     public function buildMapping()
     {
         return [
-            'video_id' => [
+            'external_id' => [
                 'type' => 'integer',
             ],
             'title' => [
@@ -235,7 +235,7 @@ class Videos extends AbstractIndex
                         "filter" => ["term" => ["tube" => $tube]]
                     ]
                 ],
-                "sort" => ['video_id' => ['order' => 'desc']]
+                "sort" => ['external_id' => ['order' => 'desc']]
             ],
         ];
         $res = $this->search($params);
