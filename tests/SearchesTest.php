@@ -1,10 +1,11 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-
+use Roxby\Elastic\Indexes\Searches as SIndex;
 class SearchesTest extends TestCase
 {
     public $searchesIndex;
+    public $hosts = ['localhost:9200'];
     public $tube = "test";
     public $query_first = "lazy dog";
     public $query_second = "diligent dog";
@@ -12,7 +13,7 @@ class SearchesTest extends TestCase
     public function __construct($name = null, array $data = [], $dataName = '')
     {
         parent::__construct($name, $data, $dataName);
-        $this->searchesIndex = new Roxby\Elastic\Indexes\Searches(['localhost:9200']);
+        $this->searchesIndex = SIndex::getInstance($this->hosts);
     }
 
     public function testCrud()
@@ -27,7 +28,8 @@ class SearchesTest extends TestCase
 
     public function isIndexExist()
     {
-        $this->assertTrue($this->searchesIndex->indexExists());
+        $res = SIndex::exists($this->hosts, 'searches');
+        $this->assertTrue($res);
     }
 
     public function refresh()
