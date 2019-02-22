@@ -198,6 +198,30 @@ abstract class AbstractIndex
     }
 
     /**
+     * @param $data
+     * @param $ids
+     * @return bool|string
+     */
+    public function bulkUpdate($data, $ids)
+    {
+        $params = [];
+        foreach ($ids as $id) {
+            $params[] =  [
+                "update" => [
+                    "_index" => $this->name,
+                    "_type" => "_doc",
+                    "_id" => $id
+                ]
+            ];
+            $params[] = [
+                "doc" => $data
+            ];
+        }
+        $responses = $this->client->bulk(["body" => $params]);
+        return isset($responses['errors']) ? !$responses['errors'] : false;
+    }
+
+    /**
      * Delete single document by id
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_deleting_documents.html
      * @param $id
