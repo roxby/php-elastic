@@ -17,12 +17,20 @@ class Videos extends AbstractIndex
         "models.english"
     ];
 
+    public static function getInstance($hosts = [])
+    {
+        if (is_null(self::$instance)) {
+            self::$instance = new Videos($hosts);
+        }
+        return self::$instance;
+    }
+
     /**
      * indexing text fields twice: once with the english analyzer and once with the standard analyzer.
      * @see https://qbox.io/blog/elasticsearch-english-analyzer-customize
      * @return array
      */
-    public function getIndexMapping()
+    public function buildMapping()
     {
         return [
             'video_id' => [
@@ -67,11 +75,20 @@ class Videos extends AbstractIndex
             ],
             'deleted' => [
                 'type' => 'boolean'
+            ],
+            'url' => [
+                'type' => 'text'
+            ],
+            'thumb' => [
+                'type' => 'text'
+            ],
+            'vthumb' => [
+                'type' => 'object'
             ]
         ];
     }
 
-    public function addEnglishAnalyzer()
+    private function addEnglishAnalyzer()
     {
         return [
             "english" => [
@@ -135,12 +152,12 @@ class Videos extends AbstractIndex
      * @param array $fields - expected structure [field1 => (int)boost, field2 => (int) boost, ...]
      * @return array
      */
-    public function buildSearchFields(array $fields)
+    private function buildSearchFields(array $fields)
     {
         $result = [];
         static $mapping = null;
         if (is_null($mapping)) {
-            $mapping = $this->indexGetMapping();
+            $mapping = $this->getMapping();
         }
         foreach ($fields as $field => $boost) {
             if (isset($mapping[$field])) {
@@ -164,7 +181,7 @@ class Videos extends AbstractIndex
      * - max integer - maximum duration
      * @return array
      */
-    public function buildMustRule($query, $params = [])
+    private function buildMustRule($query, $params = [])
     {
 
         $fieldsArr = isset($params["fields"]) ? $this->buildSearchFields($params['fields']) : $this->fields;

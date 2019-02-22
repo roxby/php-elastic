@@ -6,10 +6,20 @@ class Searches extends AbstractIndex
 {
     public $name = "searches";
 
+
+    public static function getInstance($hosts = [])
+    {
+        if (is_null(self::$instance)) {
+            self::$instance = new Searches($hosts);
+        }
+        return self::$instance;
+    }
+
+
     /**
      * @return array
      */
-    public function getIndexMapping()
+    public function buildMapping()
     {
         return [
             "query" => [
