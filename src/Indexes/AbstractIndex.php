@@ -8,7 +8,6 @@ abstract class AbstractIndex
 
     protected $client;
     protected $name;
-    protected static $instance = null;
 
     protected function __construct($hosts)
     {

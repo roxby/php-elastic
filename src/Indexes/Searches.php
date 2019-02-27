@@ -5,7 +5,7 @@ namespace Roxby\Elastic\Indexes;
 class Searches extends AbstractIndex
 {
     public $name = "searches";
-
+    protected static $instance = null;
 
     public static function getInstance($hosts = [])
     {

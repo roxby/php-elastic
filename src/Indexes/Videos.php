@@ -5,6 +5,7 @@ namespace Roxby\Elastic\Indexes;
 class Videos extends AbstractIndex
 {
     public $name = 'videos';
+    protected static $instance = null;
 
     public $fields = [
         "title^3",
