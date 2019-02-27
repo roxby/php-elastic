@@ -111,10 +111,11 @@ class Videos extends AbstractIndex
      * - fields assoc array of search fields [field1 => 1, field2 => 3, field3 => 10]
      * - min integer - minimum duration
      * - max integer - maximum duration
+     * @param array $fields
      * @return array
      */
 
-    public function searchMany($tube, $query, array $params = [])
+    public function searchMany($tube, $query, array $params = [], $fields = [])
     {
         $defaults = [
             "from" => 0,
@@ -124,6 +125,7 @@ class Videos extends AbstractIndex
 
         $mustRule = $this->buildMustRule($query, $params);
         $body = [
+            "_source" => $fields, //if empty just get all
             "from" => $params['from'],
             "size" => $params['size'],
             "query" => [
