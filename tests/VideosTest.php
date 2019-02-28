@@ -57,8 +57,7 @@ class VideosTest extends TestCase
 
     public function getDocument()
     {
-        $uid = $this->videosIndex->generateUID($this->tube, 1);
-        $res = $this->videosIndex->get($uid);
+        $res = $this->videosIndex->get($this->tube, 1);
         $this->assertTrue(!is_null($res));
     }
 

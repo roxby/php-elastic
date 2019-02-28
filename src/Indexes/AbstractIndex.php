@@ -84,16 +84,17 @@ abstract class AbstractIndex
     /**
      * Get document by its id - uid in our case
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/6.6/docs-get.html
-     * @param $id
+     * @param $tube
+     * @param $external_id
      * @return array|null
      */
-    public function get($id)
+    public function get($tube, $external_id)
     {
         try {
             $params = [
                 'index' => $this->name,
                 'type' => '_doc',
-                'id' => $id
+                'id' => $this->generateUID($tube, $external_id)
             ];
             $res = $this->client->get($params);
             return $res["found"] ? $res["_source"] : null;
@@ -163,7 +164,7 @@ abstract class AbstractIndex
      * @param $external_id
      * @return string
      */
-    public function generateUID($tube, $external_id)
+    protected function generateUID($tube, $external_id)
     {
         return "$tube-$external_id";
     }
