@@ -64,11 +64,10 @@ class VideosTest extends TestCase
 
     public function updateSingleDocument()
     {
-        $uid = $this->videosIndex->generateUID($this->tube, 1);
         $data = [
             'post_date' => '2015-01-12 00:00:00'
         ];
-        $res = $this->videosIndex->update($data, $uid);
+        $res = $this->videosIndex->update($data, $this->tube, 1);
         $this->assertTrue($res);
         $this->refresh();
     }
@@ -121,8 +120,7 @@ class VideosTest extends TestCase
 
     public function deleteSingleDocument()
     {
-        $uid = $this->videosIndex->generateUID($this->tube, 1);
-        $res = $this->videosIndex->delete($uid);
+        $res = $this->videosIndex->delete($this->tube, 1);
         $this->assertTrue($res);
         $this->videosIndex->indexRefresh();
     }
@@ -130,11 +128,7 @@ class VideosTest extends TestCase
     public function bulkDelete()
     {
         $bulkIds = [2, 3, 4, 5, 6];
-        $uids = [];
-        foreach ($bulkIds as $id) {
-            $uids[] = $this->videosIndex->generateUID($this->tube, $id);
-        }
-        $this->videosIndex->bulkDelete($uids);
+        $this->videosIndex->bulkDelete($this->tube, $bulkIds);
 
         $this->videosIndex->indexRefresh();
 

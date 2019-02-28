@@ -212,13 +212,14 @@ class Videos extends AbstractIndex
     }
 
     /**
-     * mark video as deleted
+     * mark videos as deleted
+     * @param $tube string
      * @param $ids array
      * @return bool
      */
-    public function setDeleted($ids)
+    public function setDeleted($tube, $ids)
     {
-        return $this->update(["deleted" => true], $ids);
+        return $this->bulkUpdate(["deleted" => true], $tube, $ids);
     }
 
 
