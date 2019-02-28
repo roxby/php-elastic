@@ -239,12 +239,12 @@ class Videos extends AbstractIndex
                         "filter" => ["term" => ["tube" => $tube]]
                     ]
                 ],
-                "sort" => ['external_id' => ['order' => 'desc']]
+                "sort" => ["external_id" => ["order" => "desc"]]
             ],
         ];
         $res = $this->search($params);
         if ($res) {
-            return isset($res[0]['_source']) ? $res[0]['_source'] : null;
+            return isset($res["data"]) && !empty($res["data"]) ? $res["data"][0] : null;
         }
         return null;
     }
