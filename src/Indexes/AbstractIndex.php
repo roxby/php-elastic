@@ -140,6 +140,7 @@ abstract class AbstractIndex
      */
     public function bulkAdd($data)
     {
+        if (!count($data)) return false;
         $finalD = [];
         foreach ($data as $d) {
             $meta = [
@@ -206,6 +207,7 @@ abstract class AbstractIndex
      */
     public function bulkUpdate($data, $tube, $external_ids)
     {
+        if (!count($external_ids)) return false;
         $params = [];
         foreach ($external_ids as $id) {
             $params[] =  [
@@ -255,6 +257,7 @@ abstract class AbstractIndex
      */
     public function bulkDelete($tube, $external_ids)
     {
+        if (!count($external_ids)) return false;
         $params = [];
         foreach ($external_ids as $id) {
             $params[] = [
