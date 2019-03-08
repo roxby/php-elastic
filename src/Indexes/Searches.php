@@ -154,6 +154,7 @@ class Searches extends AbstractIndex
         $params = [
             "index" => $this->name,
             "type" => "_doc",
+            "conflicts" => "proceed", //What to do when the reindex hits version conflicts? (abort,proceed)
             "body" => $body
 
         ];

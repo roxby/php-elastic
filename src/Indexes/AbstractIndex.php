@@ -186,6 +186,7 @@ abstract class AbstractIndex
                 'index' => $this->name,
                 'type' => '_doc',
                 'id' => $this->generateUID($tube, $external_id),
+                'retry_on_conflict' => 3,
                 'body' => [
                     'doc' => $data
                 ]
