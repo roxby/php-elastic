@@ -135,6 +135,7 @@ class Searches extends AbstractIndex
 
     private function normalizeQuery($query)
     {
+        $query = strtolower($query);
         return str_replace(" ", "_", $query);
     }
 
