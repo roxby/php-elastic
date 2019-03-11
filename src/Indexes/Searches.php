@@ -5,7 +5,7 @@ namespace Roxby\Elastic\Indexes;
 class Searches extends AbstractIndex
 {
     public $name = "searches";
-
+    protected static $instance = null;
 
     public static function getInstance($hosts = [])
     {
@@ -50,9 +50,10 @@ class Searches extends AbstractIndex
      * @param array $params
      * - from integer
      * - size integer
+     * @param array $fields
      * @return array|null
      */
-    public function searchMany($tube, $query, array $params = [])
+    public function searchMany($tube, $query, array $params = [], $fields = [])
     {
         $defaults = [
             "from" => 0,
@@ -60,6 +61,7 @@ class Searches extends AbstractIndex
         ];
         $params = array_merge($defaults, $params);
         $body = [
+            "_source" => $fields,
             "from" => $params['from'],
             "size" => $params['size'],
             "query" => [
@@ -133,6 +135,7 @@ class Searches extends AbstractIndex
 
     private function normalizeQuery($query)
     {
+        $query = strtolower($query);
         return str_replace(" ", "_", $query);
     }
 
@@ -152,6 +155,7 @@ class Searches extends AbstractIndex
         $params = [
             "index" => $this->name,
             "type" => "_doc",
+            "conflicts" => "proceed", //What to do when the reindex hits version conflicts? (abort,proceed)
             "body" => $body
 
         ];

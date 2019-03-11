@@ -5,6 +5,7 @@ namespace Roxby\Elastic\Indexes;
 class Videos extends AbstractIndex
 {
     public $name = 'videos';
+    protected static $instance = null;
 
     public $fields = [
         "title^3",
@@ -110,10 +111,11 @@ class Videos extends AbstractIndex
      * - fields assoc array of search fields [field1 => 1, field2 => 3, field3 => 10]
      * - min integer - minimum duration
      * - max integer - maximum duration
+     * @param array $fields
      * @return array
      */
 
-    public function searchMany($tube, $query, array $params = [])
+    public function searchMany($tube, $query, array $params = [], $fields = [])
     {
         $defaults = [
             "from" => 0,
@@ -123,6 +125,7 @@ class Videos extends AbstractIndex
 
         $mustRule = $this->buildMustRule($query, $params);
         $body = [
+            "_source" => $fields, //if empty just get all
             "from" => $params['from'],
             "size" => $params['size'],
             "query" => [
@@ -209,13 +212,14 @@ class Videos extends AbstractIndex
     }
 
     /**
-     * mark video as deleted
+     * mark videos as deleted
+     * @param $tube string
      * @param $ids array
      * @return bool
      */
-    public function setDeleted($ids)
+    public function setDeleted($tube, $ids)
     {
-        return $this->update(["deleted" => true], $ids);
+        return $this->bulkUpdate(["deleted" => true], $tube, $ids);
     }
 
 
@@ -235,12 +239,12 @@ class Videos extends AbstractIndex
                         "filter" => ["term" => ["tube" => $tube]]
                     ]
                 ],
-                "sort" => ['external_id' => ['order' => 'desc']]
+                "sort" => ["external_id" => ["order" => "desc"]]
             ],
         ];
         $res = $this->search($params);
         if ($res) {
-            return isset($res[0]['_source']) ? $res[0]['_source'] : null;
+            return isset($res["data"]) && !empty($res["data"]) ? $res["data"][0] : null;
         }
         return null;
     }

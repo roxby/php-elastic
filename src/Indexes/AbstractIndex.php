@@ -8,7 +8,6 @@ abstract class AbstractIndex
 
     protected $client;
     protected $name;
-    protected static $instance = null;
 
     protected function __construct($hosts)
     {
@@ -85,16 +84,17 @@ abstract class AbstractIndex
     /**
      * Get document by its id - uid in our case
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/6.6/docs-get.html
-     * @param $id
+     * @param $tube
+     * @param $external_id
      * @return array|null
      */
-    public function get($id)
+    public function get($tube, $external_id)
     {
         try {
             $params = [
                 'index' => $this->name,
                 'type' => '_doc',
-                'id' => $id
+                'id' => $this->generateUID($tube, $external_id)
             ];
             $res = $this->client->get($params);
             return $res["found"] ? $res["_source"] : null;
@@ -140,6 +140,7 @@ abstract class AbstractIndex
      */
     public function bulkAdd($data)
     {
+        if (!count($data)) return false;
         $finalD = [];
         foreach ($data as $d) {
             $meta = [
@@ -164,7 +165,7 @@ abstract class AbstractIndex
      * @param $external_id
      * @return string
      */
-    public function generateUID($tube, $external_id)
+    protected function generateUID($tube, $external_id)
     {
         return "$tube-$external_id";
     }
@@ -174,16 +175,18 @@ abstract class AbstractIndex
      * Update single document
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_updating_documents.html
      * @param $data
-     * @param $id
+     * @param $tube
+     * @param $external_id
      * @return bool
      */
-    public function update($data, $id)
+    public function update($data, $tube, $external_id)
     {
         try {
             $params = [
                 'index' => $this->name,
                 'type' => '_doc',
-                'id' => $id,
+                'id' => $this->generateUID($tube, $external_id),
+                'retry_on_conflict' => 3,
                 'body' => [
                     'doc' => $data
                 ]
@@ -199,18 +202,20 @@ abstract class AbstractIndex
 
     /**
      * @param $data
-     * @param $ids
+     * @param $tube
+     * @param $external_ids
      * @return bool|string
      */
-    public function bulkUpdate($data, $ids)
+    public function bulkUpdate($data, $tube, $external_ids)
     {
+        if (!count($external_ids)) return false;
         $params = [];
-        foreach ($ids as $id) {
+        foreach ($external_ids as $id) {
             $params[] =  [
                 "update" => [
                     "_index" => $this->name,
                     "_type" => "_doc",
-                    "_id" => $id
+                    "_id" => $this->generateUID($tube, $id)
                 ]
             ];
             $params[] = [
@@ -224,16 +229,17 @@ abstract class AbstractIndex
     /**
      * Delete single document by id
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_deleting_documents.html
-     * @param $id
+     * @param $tube
+     * @param $external_id
      * @return bool
      */
-    public function delete($id)
+    public function delete($tube, $external_id)
     {
         try {
             $params = [
                 'index' => $this->name,
                 'type' => '_doc',
-                'id' => $id
+                'id' => $this->generateUID($tube, $external_id)
             ];
 
             $this->client->delete($params);
@@ -246,18 +252,20 @@ abstract class AbstractIndex
 
     /**
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
-     * @param $ids
+     * @param $tube
+     * @param $external_ids
      * @return bool
      */
-    public function bulkDelete($ids)
+    public function bulkDelete($tube, $external_ids)
     {
+        if (!count($external_ids)) return false;
         $params = [];
-        foreach ($ids as $id) {
+        foreach ($external_ids as $id) {
             $params[] = [
                 "delete" => [
                     "_index" => $this->name,
                     "_type" => "_doc",
-                    "_id" => $id
+                    "_id" => $this->generateUID($tube, $id)
                 ]];
         }
         $responses = $this->client->bulk(["body" => $params]);
