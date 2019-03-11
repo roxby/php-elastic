@@ -250,8 +250,8 @@ class Videos extends AbstractIndex
                 ]
             ];
 
-            if (isset($data['tube']) && isset($data['external_id'])) {
-                $id = $this->generateId($data['tube'], $data['external_id']);
+            if (isset($d['tube']) && isset($d['external_id'])) {
+                $id = $this->generateId($d['tube'], $d['external_id']);
                 $meta["index"]["_id"] = $id;
             }
             array_push($finalD, $meta, $d);
