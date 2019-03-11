@@ -175,6 +175,7 @@ class Videos extends AbstractIndex
 
     /**
      * build must rule to add to search query
+     * Post date not greater than today
      * Query must match to at least one of the fields (sent or defaults)
      * Also if duration params are sent - must search within duration range
      * @param $query string
@@ -197,17 +198,18 @@ class Videos extends AbstractIndex
 
             ]
         ];
+        $range[] = [
+            "range" => ["post_date" => ["lte" => date("Y-m-d H:i:s")]]
+        ];
         if (!empty($params) && (isset($params['min']) || isset($params['max']))) {
-            $range = [
-                "range" => [
-                    "duration" => [
-                        "gt" => isset($params["min"]) ? $params["min"] : 0,
-                        "lte" => isset($params["max"]) ? $params["max"] : 10000000
-                    ]
-                ]
+            $range[] = [
+                "range" => ["duration" => [
+                    "gt" => isset($params["min"]) ? $params["min"] : 0,
+                    "lte" => isset($params["max"]) ? $params["max"] : 10000000
+                ]]
             ];
-            $mustRule[] = $range;
         }
+        $mustRule[] = $range;
         return $mustRule;
     }
 
