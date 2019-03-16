@@ -52,6 +52,7 @@ class Searches extends AbstractIndex
      */
     public function searchMany($tube, $query, array $params = [], $fields = [])
     {
+        //var_dump($this->generateId($tube, $query)); die;
         $defaults = [
             "from" => 0,
             "size" => 100
@@ -72,6 +73,9 @@ class Searches extends AbstractIndex
                     "filter" => [
                         "term" => ["tube" => $tube]
                     ],
+                    "must_not" => [
+                        ["terms" => ["_id" => [$this->generateId($tube, $query)]]] //not current query
+                    ]
                 ]
             ],
             "sort" => [
