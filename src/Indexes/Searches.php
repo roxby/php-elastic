@@ -39,9 +39,28 @@ class Searches extends AbstractIndex
     }
 
 
+    private function buildRequestBody(array $searchQuery, array $sort, $params = [], $fields = [])
+    {
+        $defaults = [
+            "from" => 0,
+            "size" => 100
+        ];
+        $params = array_merge($defaults, $params);
+        $body = [
+            "_source" => $fields, //if not empty - get only specified fields, otherwise get all
+            "from" => $params['from'],
+            "size" => $params['size'],
+            "query" => $searchQuery,
+            "sort" => $sort
+        ];
+        return [
+            "index" => $this->name,
+            "body" => $body
+        ];
+    }
+
     /**
-     * perform search
-     * build query filtered by tube name, should match search query
+     * perform search - get queries related to sent query
      * @param $tube
      * @param $query
      * @param array $params
@@ -52,43 +71,41 @@ class Searches extends AbstractIndex
      */
     public function searchMany($tube, $query, array $params = [], $fields = [])
     {
-        //var_dump($this->generateId($tube, $query)); die;
-        $defaults = [
-            "from" => 0,
-            "size" => 100
-        ];
-        $params = array_merge($defaults, $params);
-        $body = [
-            "_source" => $fields,
-            "from" => $params['from'],
-            "size" => $params['size'],
-            "query" => [
-                "bool" => [
-                    "must" => [
-                        "match" => [
-                            "query" => $query,
-                        ]
-
-                    ],
-                    "filter" => [
-                        "term" => ["tube" => $tube]
-                    ],
-                    "must_not" => [
-                        ["terms" => ["_id" => [$this->generateId($tube, $query)]]] //not current query
+        //filter by tube, get related queries, but not the one is sent
+        $searchQuery = [
+            "bool" => [
+                "must" => [
+                    "match" => [
+                        "query" => $query,
                     ]
-                ]
-            ],
-            "sort" => [
-                "count" => [
-                    "order" => "desc"
+
+                ],
+                "filter" => [
+                    "term" => ["tube" => $tube]
+                ],
+                "must_not" => [
+                    ["terms" => ["_id" => [$this->generateId($tube, $query)]]] //not current query
                 ]
             ]
+        ];
+        $sort = ["count" => ["order" => "desc"]];
+        $data = $this->buildRequestBody($searchQuery, $sort, $params, $fields);
+        return $this->search($data);
+    }
 
-        ];
-        $data = [
-            "index" => $this->name,
-            "body" => $body
-        ];
+    /**
+     * perform search get most popular searches
+     * @param $tube
+     * @param array $params
+     * @param array $fields
+     * @return array|null
+     */
+    public function getMostPopular($tube, array $params = [], array $fields = [])
+    {
+        //filter by tube only and sort by count
+        $searchQuery = ["term" => ["tube" => $tube]];
+        $sort = ["count" => ["order" => "desc"]];
+        $data = $this->buildRequestBody($searchQuery, $sort, $params, $fields);
         return $this->search($data);
     }
 
