@@ -7,15 +7,27 @@ class Videos extends AbstractIndex
     public $name = 'videos';
     protected static $instance = null;
 
+    const SORT_ID_ASC = 'id-asc';
+    const SORT_ID_DESC = 'id-desc';
+    const SORT_LATEST = 'latest';
+    const SORT_TOP_RATED = 'top-rated';
+    const SORT_MOST_VIEWED = 'most-viewed';
+    const SORT_LONGEST = 'longest';
+    const SORT_MOST_COMMENTED = 'commented';
+    const SORT_MOST_FAVOURITED = 'favourited';
+
+
     public $fields = [
-        "title^3",
-        "title.english^3",
-        "cats^10",
-        "cats.english^10",
-        "tags",
-        "tags.english",
-        "models",
-        "models.english"
+        "models^11",
+        "models.english^11",
+        "title^10",
+        "title.english^10",
+        "description^9",
+        "description.english^9",
+        "tags^8",
+        "tags.english^8",
+        "cats^7",
+        "cats.english^7"
     ];
 
     public static function getInstance($hosts = [])
@@ -34,9 +46,7 @@ class Videos extends AbstractIndex
     public function buildMapping()
     {
         return [
-            'external_id' => [
-                'type' => 'integer',
-            ],
+            'external_id' => ['type' => 'integer'],
             'title' => [
                 'type' => 'text',
                 "fields" => $this->addEnglishAnalyzer()
@@ -46,22 +56,19 @@ class Videos extends AbstractIndex
                 'type' => 'text',
                 "fields" => $this->addEnglishAnalyzer()
             ],
-            'duration' => [
-                'type' => 'integer'
-            ],
-            'rating' => [
-                'type' => 'integer'
-            ],
-            'video_viewed' => [
-                'type' => 'integer'
-            ],
+            'duration' => ['type' => 'integer'],
+            'rating' => ['type' => 'integer'],
+            'rating_amount' => ['type' => 'integer'],
+            'video_viewed' => ['type' => 'integer'],
             'post_date' => [
                 'type' => 'date',
                 'format' => "yyyy-MM-dd HH:mm:ss"
             ],
             'models' => [
-                'type' => 'text',
-                "fields" => $this->addEnglishAnalyzer()
+                'properties' => [
+                    'name' => ['type' => 'text',  "fields" => $this->addEnglishAnalyzer()],
+                    'slugs' => ['type' => 'text',  "fields" => $this->addEnglishAnalyzer()]
+                ]
             ],
             'cats' => [
                 'type' => 'text',
@@ -71,21 +78,14 @@ class Videos extends AbstractIndex
                 'type' => 'text',
                 "fields" => $this->addEnglishAnalyzer()
             ],
-            'tube' => [
-                'type' => 'keyword'
-            ],
-            'deleted' => [
-                'type' => 'boolean'
-            ],
-            'url' => [
-                'type' => 'text'
-            ],
-            'thumb' => [
-                'type' => 'text'
-            ],
-            'vthumb' => [
-                'type' => 'object'
-            ]
+            'tube' => ['type' => 'keyword'],
+            'deleted' => ['type' => 'boolean'],
+            'url' => ['type' => 'text'],
+            'thumb' => ['type' => 'text'],
+            'vthumb' => ['type' => 'object'],
+            'comments_count' => ['type' => 'integer'],
+            'favourites_count' => ['type' => 'integer'],
+            'is_hd' => ['type' => 'boolean']
         ];
     }
 
@@ -105,6 +105,7 @@ class Videos extends AbstractIndex
      * must match search query, + possible add boost to certain fields
      * @param $tube string ["analdin', 'xozilla', 'vintagetube']
      * @param $query string - search query
+     * @param $sort string
      * @param $params
      * - from integer
      * - size integer
@@ -115,7 +116,7 @@ class Videos extends AbstractIndex
      * @return array
      */
 
-    public function searchMany($tube, $query, array $params = [], $fields = [])
+    public function searchMany($tube, $query, $sort = 'latest', array $params = [], $fields = [])
     {
         $defaults = [
             "from" => 0,
@@ -135,11 +136,7 @@ class Videos extends AbstractIndex
                     "must_not" => ["match" => ["deleted" => true]],
                 ]
             ],
-            "sort" => [
-                "post_date" => [
-                    "order" => "desc"
-                ]
-            ]
+            "sort" => $this->sort($sort)
         ];
         $data = [
             'index' => $this->name,
@@ -193,7 +190,8 @@ class Videos extends AbstractIndex
             [
                 "multi_match" => [
                     "query" => $query,
-                    "fields" => $fieldsArr
+                    "fields" => $fieldsArr,
+                    "type" => "phrase"
                 ]
 
             ]
@@ -211,6 +209,39 @@ class Videos extends AbstractIndex
         }
         $mustRule[] = $range;
         return $mustRule;
+    }
+
+    private function sort($sort = self::SORT_ID_DESC)
+    {
+        switch ($sort) {
+            case self::SORT_ID_DESC:
+                return ["external_id" => ["order" => "desc"]];
+            case self::SORT_ID_ASC:
+                return ["external_id" => ["order" => "asc"]];
+            case self::SORT_LATEST:
+                return ["post_date" => ["order" => "desc"]];
+            case self::SORT_LONGEST:
+                return ["duration" => ["order" => "desc"]];
+            case self::SORT_MOST_VIEWED:
+                return ["video_viewed" => ["order" => "desc"]];
+            case self::SORT_TOP_RATED:
+                return [
+                    "_script" => [
+                        "type" => "number",
+                        "script" => [
+                            "source" => "ctx._source.rating / ctx._source.rating_amount;",
+                        ],
+                        "order" => "desc"
+                    ]
+                ];
+            case self::SORT_MOST_COMMENTED:
+                return ["comments_count" => ["order" => "desc"]];
+            case self::SORT_MOST_FAVOURITED:
+                return ["favourites_count" => ["order" => "desc"]];
+
+
+
+        }
     }
 
     /**
