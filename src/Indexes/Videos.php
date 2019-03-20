@@ -18,8 +18,10 @@ class Videos extends AbstractIndex
 
 
     public $fields = [
-        "models^11",
-        "models.english^11",
+        "models.name^11",
+        "models.name.english^11",
+        "models.alias^11",
+        "models.alias.english^11",
         "title^10",
         "title.english^10",
         "description^9",
@@ -67,7 +69,7 @@ class Videos extends AbstractIndex
             'models' => [
                 'properties' => [
                     'name' => ['type' => 'text',  "fields" => $this->addEnglishAnalyzer()],
-                    'slugs' => ['type' => 'text',  "fields" => $this->addEnglishAnalyzer()]
+                    'alias' => ['type' => 'text',  "fields" => $this->addEnglishAnalyzer()]
                 ]
             ],
             'cats' => [
