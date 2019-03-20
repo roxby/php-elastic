@@ -99,7 +99,7 @@ class VideosTest extends TestCase
         $params = [
             'fields' => ["title" => 1, "description" => 3]
         ];
-        $res = $this->videosIndex->searchMany($this->tube, $existingQuery, $params);
+        $res = $this->videosIndex->searchMany($this->tube, $existingQuery, 'latest', $params);
         $this->assertTrue(!empty($res['data']));
         $this->assertEquals(1, $res['total']);
 
