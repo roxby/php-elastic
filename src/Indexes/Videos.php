@@ -7,14 +7,14 @@ class Videos extends AbstractIndex
     public $name = 'videos';
     protected static $instance = null;
 
-    const SORT_ID_ASC = 'id-asc';
-    const SORT_ID_DESC = 'id-desc';
-    const SORT_LATEST = 'latest';
-    const SORT_TOP_RATED = 'top-rated';
-    const SORT_MOST_VIEWED = 'most-viewed';
-    const SORT_LONGEST = 'longest';
-    const SORT_MOST_COMMENTED = 'commented';
-    const SORT_MOST_FAVOURITED = 'favourited';
+    const SORT_BY_ID_ASC = 'id-asc';
+    const SORT_BY_ID_DESC = 'id-desc';
+    const SORT_BY_POST_DATE = 'post_date';
+    const SORT_BY_RATING = 'rating';
+    const SORT_MOST_VIEWED = 'video_viewed';
+    const SORT_BY_DURATION = 'duration';
+    const SORT_BY_COMMENTS = 'most_commented';
+    const SORT_BY_FAVOURITES = 'most_favourited';
 
 
     public $fields = [
@@ -68,8 +68,8 @@ class Videos extends AbstractIndex
             ],
             'models' => [
                 'properties' => [
-                    'name' => ['type' => 'text',  "fields" => $this->addEnglishAnalyzer()],
-                    'alias' => ['type' => 'text',  "fields" => $this->addEnglishAnalyzer()]
+                    'name' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()],
+                    'alias' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()]
                 ]
             ],
             'cats' => [
@@ -107,7 +107,6 @@ class Videos extends AbstractIndex
      * must match search query, + possible add boost to certain fields
      * @param $tube string ["analdin', 'xozilla', 'vintagetube']
      * @param $query string - search query
-     * @param $sort string
      * @param $params
      * - from integer
      * - size integer
@@ -118,15 +117,15 @@ class Videos extends AbstractIndex
      * @return array
      */
 
-    public function searchMany($tube, $query, $sort = 'latest', array $params = [], $fields = [])
+    public function searchMany($tube, $query, array $params = [], $fields = [])
     {
         $defaults = [
             "from" => 0,
             "size" => 100
         ];
         $params = array_merge($defaults, $params);
-
         $mustRule = $this->buildMustRule($query, $params);
+
         $body = [
             "_source" => $fields, //if empty just get all
             "from" => $params['from'],
@@ -134,12 +133,14 @@ class Videos extends AbstractIndex
             "query" => [
                 "bool" => [
                     "must" => $mustRule,
-                    "filter" => ["term" => ["tube" => $tube]],
+                    "filter" => $this->buildFilters($tube, $params),
                     "must_not" => ["match" => ["deleted" => true]],
                 ]
-            ],
-            "sort" => $this->sort($sort)
+            ]
         ];
+        if (isset($params["sort"])) {
+            $body["sort"] = $this->sort($params["sort"]);
+        }
         $data = [
             'index' => $this->name,
             'body' => $body
@@ -193,7 +194,7 @@ class Videos extends AbstractIndex
                 "multi_match" => [
                     "query" => $query,
                     "fields" => $fieldsArr,
-                    "type" => "phrase"
+                    "minimum_should_match" => "75%"
                 ]
 
             ]
@@ -213,36 +214,44 @@ class Videos extends AbstractIndex
         return $mustRule;
     }
 
-    private function sort($sort = self::SORT_ID_DESC)
+    private function buildFilters($tube, $params) {
+        $filters = [];
+        $filters[] = ["term" => ["tube" => $tube]];
+        if (isset($params['is_hd']) && $params['is_hd']) {
+            $filters[] = ["term" => ["is_hd" => true]];
+        }
+        return $filters;
+    }
+
+    private function sort($sort)
     {
         switch ($sort) {
-            case self::SORT_ID_DESC:
+            case self::SORT_BY_ID_DESC:
                 return ["external_id" => ["order" => "desc"]];
-            case self::SORT_ID_ASC:
+            case self::SORT_BY_ID_ASC:
                 return ["external_id" => ["order" => "asc"]];
-            case self::SORT_LATEST:
+            case self::SORT_BY_POST_DATE:
                 return ["post_date" => ["order" => "desc"]];
-            case self::SORT_LONGEST:
+            case self::SORT_BY_DURATION:
                 return ["duration" => ["order" => "desc"]];
             case self::SORT_MOST_VIEWED:
                 return ["video_viewed" => ["order" => "desc"]];
-            case self::SORT_TOP_RATED:
+            case self::SORT_BY_RATING:
                 return [
                     "_script" => [
                         "type" => "number",
                         "script" => [
-                            "source" => "ctx._source.rating / ctx._source.rating_amount;",
+                            "source" => "doc.rating.value / doc.rating_amount.value;",
                         ],
                         "order" => "desc"
                     ]
                 ];
-            case self::SORT_MOST_COMMENTED:
+            case self::SORT_BY_COMMENTS:
                 return ["comments_count" => ["order" => "desc"]];
-            case self::SORT_MOST_FAVOURITED:
+            case self::SORT_BY_FAVOURITES:
                 return ["favourites_count" => ["order" => "desc"]];
-
-
-
+            default:
+                return ["post_date" => ["order" => "desc"]];
         }
     }
 
