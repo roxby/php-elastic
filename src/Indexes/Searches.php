@@ -25,9 +25,6 @@ class Searches extends AbstractIndex
             "query" => [
                 "type" => "text"
             ],
-            "alias" => [
-                "type" => "text"
-            ],
             "last_updated" => [
                 "type" => "date",
                 "format" => "yyyy-MM-dd HH:mm:ss"
@@ -42,9 +39,28 @@ class Searches extends AbstractIndex
     }
 
 
+    private function buildRequestBody(array $searchQuery, array $sort, $params = [], $fields = [])
+    {
+        $defaults = [
+            "from" => 0,
+            "size" => 100
+        ];
+        $params = array_merge($defaults, $params);
+        $body = [
+            "_source" => $fields, //if not empty - get only specified fields, otherwise get all
+            "from" => $params['from'],
+            "size" => $params['size'],
+            "query" => $searchQuery,
+            "sort" => $sort
+        ];
+        return [
+            "index" => $this->name,
+            "body" => $body
+        ];
+    }
+
     /**
-     * perform search
-     * build query filtered by tube name, should match search query
+     * perform search - get queries related to sent query
      * @param $tube
      * @param $query
      * @param array $params
@@ -55,163 +71,101 @@ class Searches extends AbstractIndex
      */
     public function searchMany($tube, $query, array $params = [], $fields = [])
     {
-        $defaults = [
-            "from" => 0,
-            "size" => 100
-        ];
-        $params = array_merge($defaults, $params);
-        $body = [
-            "_source" => $fields,
-            "from" => $params['from'],
-            "size" => $params['size'],
-            "query" => [
-                "bool" => [
-                    "must" => [
-                        "match" => [
-                            "query" => $query,
-                        ]
+        //filter by tube, get related queries, but not the one is sent
+        $searchQuery = [
+            "bool" => [
+                "must" => [
+                    "match" => [
+                        "query" => $query,
+                    ]
 
-                    ],
-                    "filter" => [
-                        "term" => ["tube" => $tube]
-                    ],
-                ]
-            ],
-            "sort" => [
-                "last_updated" => [
-                    "order" => "desc"
+                ],
+                "filter" => [
+                    "term" => ["tube" => $tube]
+                ],
+                "must_not" => [
+                    ["terms" => ["_id" => [$this->generateId($tube, $query)]]] //not current query
                 ]
             ]
-
         ];
-        $data = [
-            "index" => $this->name,
-            "body" => $body
-        ];
+        $sort = ["count" => ["order" => "desc"]];
+        $data = $this->buildRequestBody($searchQuery, $sort, $params, $fields);
         return $this->search($data);
     }
 
     /**
-     * Update document if exist,  otherwise create new
+     * perform search get most popular searches
      * @param $tube
-     * @param $query
-     * @return bool
+     * @param array $params
+     * @param array $fields
+     * @return array|null
      */
-    public function updateOrCreate($tube, $query)
+    public function getMostPopular($tube, array $params = [], array $fields = [])
     {
-        $res = $this->updateByQuery($tube, $query);
-        if (!$res) {
-            $params = [
-                "tube" => $tube,
-                "query" => $query,
-                "alias" => $this->normalizeQuery($query),
-                "count" => 1,
-                "last_updated" => date("Y-m-d H:i:s")
-            ];
-            return $this->add($params);
-        }
-        return $res;
-
+        //filter by tube only and sort by count
+        $searchQuery = ["term" => ["tube" => $tube]];
+        $sort = ["count" => ["order" => "desc"]];
+        $data = $this->buildRequestBody($searchQuery, $sort, $params, $fields);
+        return $this->search($data);
     }
 
-    /**
-     * build query for finding exact one document
-     * @param $tube
-     * @param $query
-     * @return array
-     */
-    private function findOneQuery($tube, $query)
-    {
-        return [
-            "query" => [
-                "bool" => [
-                    "must" => [
-                        ["term" => ["tube" => $tube]],
-                        ["term" => ["alias" => $this->normalizeQuery($query)]]
-                    ]
-                ]
-            ]];
-    }
 
     private function normalizeQuery($query)
     {
         $query = strtolower($query);
-        return str_replace(" ", "_", $query);
+        return trim(str_replace(" ", "_", $query));
     }
 
-    /**
-     * find document, update its counter and set last_updated to now
-     * @param $tube
-     * @param $query
-     * @return int
-     */
-    private function updateByQuery($tube, $query)
+    public function upsert($tube, $query)
     {
-        $body = $this->findOneQuery($tube, $query);
-        $body["script"] = [
-            "inline" => "ctx._source.count++; ctx._source.last_updated=params['time'];",
-            "params" => ["time" => date("Y-m-d H:i:s")]
-        ];
         $params = [
             "index" => $this->name,
             "type" => "_doc",
-            "conflicts" => "proceed", //What to do when the reindex hits version conflicts? (abort,proceed)
-            "body" => $body
-
+            "id" => $this->generateId($tube, $query),
+            "body" => [
+                "script" => [
+                    "source" => "ctx._source.count++; ctx._source.last_updated=params.time;",
+                    "params" => ["time" => date("Y-m-d H:i:s")]
+                ],
+                "upsert" => [
+                    "query" => $query,
+                    "tube" => $tube,
+                    "count" => 1,
+                    "last_updated" => date("Y-m-d H:i:s")
+                ]
+            ]
         ];
-        $res = $this->client->updateByQuery($params);
-
-        return isset($res["updated"]) ? $res["updated"] : 0;
-
+        return $this->update($params);
     }
 
-    /**
-     * perform search, get one document
-     * @param $tube
-     * @param $query
-     * @return array|null
-     */
-    public function searchOne($tube, $query)
-    {
-        $body = $this->findOneQuery($tube, $query);
-        $data = [
-            "index" => $this->name,
-            "type" => "_doc",
-            "body" => $body
-        ];
-        $res = $this->search($data);
-        if ($res && isset($res['data']) && !empty($res['data'])) {
-            return $res['data'][0];
-        }
-        return null;
-    }
 
-    /**
-     * @param $tube
-     * @param $query
-     * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
-     * @return integer
-     */
-    public function deleteByQuery($tube, $query)
+
+    public function getOne($tube, $query)
     {
         $params = [
             'index' => $this->name,
             'type' => '_doc',
-            'body' => [
-                "query" => [
-                    "bool" => [
-                        "must" => [
-                            "match" => ["alias" => $this->normalizeQuery($query)]
-                        ],
-                        "filter" => [
-                            "term" => ["tube" => $tube]
-                        ],
-                    ]
-                ]
-            ]
+            'id' => $this->generateId($tube, $query)
         ];
-        $res = $this->client->deleteByQuery($params);
-        return isset($res["deleted"]) ? $res["deleted"] : 0;
+        return $this->get($params);
     }
+
+    public function deleteOne($tube, $query)
+    {
+        $params = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'id' => $this->generateId($tube, $query)
+        ];
+        return $this->delete($params);
+    }
+
+    protected function generateId($tube, $query)
+    {
+        $query = $this->normalizeQuery($query);
+        $final = $tube . "-" . $query;
+        return md5($final);
+    }
+
 
 }

@@ -7,15 +7,29 @@ class Videos extends AbstractIndex
     public $name = 'videos';
     protected static $instance = null;
 
+    const SORT_BY_ID_ASC = 'id-asc';
+    const SORT_BY_ID_DESC = 'id-desc';
+    const SORT_BY_POST_DATE = 'post_date';
+    const SORT_BY_RATING = 'rating';
+    const SORT_MOST_VIEWED = 'video_viewed';
+    const SORT_BY_DURATION = 'duration';
+    const SORT_BY_COMMENTS = 'most_commented';
+    const SORT_BY_FAVOURITES = 'most_favourited';
+
+
     public $fields = [
-        "title^3",
-        "title.english^3",
-        "cats^10",
-        "cats.english^10",
-        "tags",
-        "tags.english",
-        "models",
-        "models.english"
+        "models.name^11",
+        "models.name.english^11",
+        "models.alias^11",
+        "models.alias.english^11",
+        "title^10",
+        "title.english^10",
+        "description^9",
+        "description.english^9",
+        "tags^8",
+        "tags.english^8",
+        "cats^7",
+        "cats.english^7"
     ];
 
     public static function getInstance($hosts = [])
@@ -34,9 +48,7 @@ class Videos extends AbstractIndex
     public function buildMapping()
     {
         return [
-            'external_id' => [
-                'type' => 'integer',
-            ],
+            'external_id' => ['type' => 'integer'],
             'title' => [
                 'type' => 'text',
                 "fields" => $this->addEnglishAnalyzer()
@@ -46,22 +58,19 @@ class Videos extends AbstractIndex
                 'type' => 'text',
                 "fields" => $this->addEnglishAnalyzer()
             ],
-            'duration' => [
-                'type' => 'integer'
-            ],
-            'rating' => [
-                'type' => 'integer'
-            ],
-            'video_viewed' => [
-                'type' => 'integer'
-            ],
+            'duration' => ['type' => 'integer'],
+            'rating' => ['type' => 'integer'],
+            'rating_amount' => ['type' => 'integer'],
+            'video_viewed' => ['type' => 'integer'],
             'post_date' => [
                 'type' => 'date',
                 'format' => "yyyy-MM-dd HH:mm:ss"
             ],
             'models' => [
-                'type' => 'text',
-                "fields" => $this->addEnglishAnalyzer()
+                'properties' => [
+                    'name' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()],
+                    'alias' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()]
+                ]
             ],
             'cats' => [
                 'type' => 'text',
@@ -71,21 +80,14 @@ class Videos extends AbstractIndex
                 'type' => 'text',
                 "fields" => $this->addEnglishAnalyzer()
             ],
-            'tube' => [
-                'type' => 'keyword'
-            ],
-            'deleted' => [
-                'type' => 'boolean'
-            ],
-            'url' => [
-                'type' => 'text'
-            ],
-            'thumb' => [
-                'type' => 'text'
-            ],
-            'vthumb' => [
-                'type' => 'object'
-            ]
+            'tube' => ['type' => 'keyword'],
+            'deleted' => ['type' => 'boolean'],
+            'url' => ['type' => 'text'],
+            'thumb' => ['type' => 'text'],
+            'vthumb' => ['type' => 'object'],
+            'comments_count' => ['type' => 'integer'],
+            'favourites_count' => ['type' => 'integer'],
+            'is_hd' => ['type' => 'boolean']
         ];
     }
 
@@ -122,8 +124,8 @@ class Videos extends AbstractIndex
             "size" => 100
         ];
         $params = array_merge($defaults, $params);
-
         $mustRule = $this->buildMustRule($query, $params);
+
         $body = [
             "_source" => $fields, //if empty just get all
             "from" => $params['from'],
@@ -131,16 +133,14 @@ class Videos extends AbstractIndex
             "query" => [
                 "bool" => [
                     "must" => $mustRule,
-                    "filter" => ["term" => ["tube" => $tube]],
+                    "filter" => $this->buildFilters($tube, $params),
                     "must_not" => ["match" => ["deleted" => true]],
-                ]
-            ],
-            "sort" => [
-                "post_date" => [
-                    "order" => "desc"
                 ]
             ]
         ];
+        if (isset($params["sort"])) {
+            $body["sort"] = $this->sort($params["sort"]);
+        }
         $data = [
             'index' => $this->name,
             'body' => $body
@@ -175,6 +175,7 @@ class Videos extends AbstractIndex
 
     /**
      * build must rule to add to search query
+     * Post date not greater than today
      * Query must match to at least one of the fields (sent or defaults)
      * Also if duration params are sent - must search within duration range
      * @param $query string
@@ -192,23 +193,66 @@ class Videos extends AbstractIndex
             [
                 "multi_match" => [
                     "query" => $query,
-                    "fields" => $fieldsArr
+                    "fields" => $fieldsArr,
+                    "minimum_should_match" => "75%"
                 ]
 
             ]
         ];
+        $range[] = [
+            "range" => ["post_date" => ["lte" => date("Y-m-d H:i:s")]]
+        ];
         if (!empty($params) && (isset($params['min']) || isset($params['max']))) {
-            $range = [
-                "range" => [
-                    "duration" => [
-                        "gt" => isset($params["min"]) ? $params["min"] : 0,
-                        "lte" => isset($params["max"]) ? $params["max"] : 10000000
-                    ]
-                ]
+            $range[] = [
+                "range" => ["duration" => [
+                    "gt" => isset($params["min"]) ? $params["min"] : 0,
+                    "lte" => isset($params["max"]) ? $params["max"] : 10000000
+                ]]
             ];
-            $mustRule[] = $range;
         }
+        $mustRule[] = $range;
         return $mustRule;
+    }
+
+    private function buildFilters($tube, $params) {
+        $filters = [];
+        $filters[] = ["term" => ["tube" => $tube]];
+        if (isset($params['is_hd']) && $params['is_hd']) {
+            $filters[] = ["term" => ["is_hd" => true]];
+        }
+        return $filters;
+    }
+
+    private function sort($sort)
+    {
+        switch ($sort) {
+            case self::SORT_BY_ID_DESC:
+                return ["external_id" => ["order" => "desc"]];
+            case self::SORT_BY_ID_ASC:
+                return ["external_id" => ["order" => "asc"]];
+            case self::SORT_BY_POST_DATE:
+                return ["post_date" => ["order" => "desc"]];
+            case self::SORT_BY_DURATION:
+                return ["duration" => ["order" => "desc"]];
+            case self::SORT_MOST_VIEWED:
+                return ["video_viewed" => ["order" => "desc"]];
+            case self::SORT_BY_RATING:
+                return [
+                    "_script" => [
+                        "type" => "number",
+                        "script" => [
+                            "source" => "doc.rating.value / doc.rating_amount.value;",
+                        ],
+                        "order" => "desc"
+                    ]
+                ];
+            case self::SORT_BY_COMMENTS:
+                return ["comments_count" => ["order" => "desc"]];
+            case self::SORT_BY_FAVOURITES:
+                return ["favourites_count" => ["order" => "desc"]];
+            default:
+                return ["post_date" => ["order" => "desc"]];
+        }
     }
 
     /**
@@ -219,9 +263,114 @@ class Videos extends AbstractIndex
      */
     public function setDeleted($tube, $ids)
     {
-        return $this->bulkUpdate(["deleted" => true], $tube, $ids);
+        return $this->updateMany(["deleted" => true], $tube, $ids);
     }
 
+
+    public function addOne($data)
+    {
+        $query = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'body' => $data,
+        ];
+        if (isset($data['tube']) && isset($data['external_id'])) {
+            //generate unified id, otherwise document will be indexed to autogenerated_id
+            $id = $this->generateId($data['tube'], $data['external_id']);
+            $query["id"] = $id;
+        }
+        return $this->add($query);
+    }
+
+    public function addMany($data)
+    {
+        if (!count($data)) return false;
+        $finalD = [];
+        foreach ($data as $d) {
+            $meta = [
+                "index" => [
+                    "_index" => $this->name,
+                    "_type" => "_doc",
+                ]
+            ];
+
+            if (isset($d['tube']) && isset($d['external_id'])) {
+                $id = $this->generateId($d['tube'], $d['external_id']);
+                $meta["index"]["_id"] = $id;
+            }
+            array_push($finalD, $meta, $d);
+        }
+        return $this->bulkAdd($finalD);
+    }
+
+    public function getOne($tube, $external_id)
+    {
+        $params = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'id' => $this->generateId($tube, $external_id)
+        ];
+        return $this->get($params);
+    }
+
+
+    public function updateOne($data, $tube, $external_id)
+    {
+        $params = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'id' => $this->generateId($tube, $external_id),
+            'retry_on_conflict' => 3,
+            'body' => [
+                'doc' => $data
+            ]
+        ];
+        return $this->update($params);
+    }
+
+    public function updateMany($data, $tube, $external_ids)
+    {
+        if (!count($external_ids)) return false;
+        $params = [];
+        foreach ($external_ids as $id) {
+            $params[] = [
+                "update" => [
+                    "_index" => $this->name,
+                    "_type" => "_doc",
+                    "_id" => $this->generateId($tube, $id)
+                ]
+            ];
+            $params[] = [
+                "doc" => $data
+            ];
+        }
+        return $this->bulkUpdate($params);
+    }
+
+    public function deleteOne($tube, $external_id)
+    {
+        $params = [
+            'index' => $this->name,
+            'type' => '_doc',
+            'id' => $this->generateId($tube, $external_id)
+        ];
+        return $this->delete($params);
+    }
+
+    public function deleteMany($tube, $external_ids)
+    {
+        if (!count($external_ids)) return false;
+        $params = [];
+        foreach ($external_ids as $id) {
+            $params[] = [
+                "delete" => [
+                    "_index" => $this->name,
+                    "_type" => "_doc",
+                    "_id" => $this->generateId($tube, $id)
+                ]];
+        }
+        return $this->bulkDelete($params);
+    }
 
     /**
      * get last stored video
@@ -247,6 +396,11 @@ class Videos extends AbstractIndex
             return isset($res["data"]) && !empty($res["data"]) ? $res["data"][0] : null;
         }
         return null;
+    }
+
+    protected function generateId($tube, $external_id)
+    {
+        return "$tube-$external_id";
     }
 
 }

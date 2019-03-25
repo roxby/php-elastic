@@ -46,10 +46,10 @@ class VideosTest extends TestCase
             'title' => 'foxes',
             'description' => 'brown fox jumped over lazy dog',
             'tube' => $this->tube,
-            'post_date' => '2014-01-12 00:00:00',
+            'post_date' => date('2014-01-12 00:00:00'),
             'duration' => 500
         ];
-        $res = $this->videosIndex->add($data);
+        $res = $this->videosIndex->addOne($data);
         $this->assertTrue($res);
         $this->refresh();
     }
@@ -57,16 +57,16 @@ class VideosTest extends TestCase
 
     public function getDocument()
     {
-        $res = $this->videosIndex->get($this->tube, 1);
+        $res = $this->videosIndex->getOne($this->tube, 1);
         $this->assertTrue(!is_null($res));
     }
 
     public function updateSingleDocument()
     {
         $data = [
-            'post_date' => '2015-01-12 00:00:00'
+            'post_date' => date('2015-01-12 00:00:00')
         ];
-        $res = $this->videosIndex->update($data, $this->tube, 1);
+        $res = $this->videosIndex->updateOne($data, $this->tube, 1);
         $this->assertTrue($res);
         $this->refresh();
     }
@@ -82,11 +82,11 @@ class VideosTest extends TestCase
                 'tube' => $this->tube,
                 'title' => 'lorem ipsum',
                 'description' => 'lorem ipsum dolor sit amet',
-                "post_date" => "2015-01-12 00:00:00",
+                "post_date" => date("2015-01-12 00:00:00"),
                 "duration" => 400
             ];
         }
-        $res = $this->videosIndex->bulkAdd($params);
+        $res = $this->videosIndex->addMany($params);
         $this->assertTrue($res);
         $this->refresh();
     }
@@ -99,7 +99,7 @@ class VideosTest extends TestCase
         $params = [
             'fields' => ["title" => 1, "description" => 3]
         ];
-        $res = $this->videosIndex->searchMany($this->tube, $existingQuery, $params);
+        $res = $this->videosIndex->searchMany($this->tube, $existingQuery, 'latest', $params);
         $this->assertTrue(!empty($res['data']));
         $this->assertEquals(1, $res['total']);
 
@@ -119,7 +119,7 @@ class VideosTest extends TestCase
 
     public function deleteSingleDocument()
     {
-        $res = $this->videosIndex->delete($this->tube, 1);
+        $res = $this->videosIndex->deleteOne($this->tube, 1);
         $this->assertTrue($res);
         $this->videosIndex->indexRefresh();
     }
@@ -127,7 +127,7 @@ class VideosTest extends TestCase
     public function bulkDelete()
     {
         $bulkIds = [2, 3, 4, 5, 6];
-        $this->videosIndex->bulkDelete($this->tube, $bulkIds);
+        $this->videosIndex->deleteMany($this->tube, $bulkIds);
 
         $this->videosIndex->indexRefresh();
 
