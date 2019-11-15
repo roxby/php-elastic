@@ -224,18 +224,18 @@ abstract class AbstractIndex
     }
 
     /**
-     * Get total count of documents related to specific tube
+     * Get count of documents
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-count.html
-     * @param $tube
+     * @param $query
      * @return integer
      */
-    public function countForTube($tube)
+    public function count($query)
     {
         $params = [
             'index' => $this->name,
             'type' => '_doc',
             'body' => [
-                "query" => ["term" => ["tube" => $tube]]
+                "query" => $query
             ]
         ];
         $res = $this->client->count($params);
