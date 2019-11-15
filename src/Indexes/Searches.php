@@ -131,10 +131,11 @@ class Searches extends AbstractIndex
     /**
      * get randomized queries
      * @param $tube string
+     * @param $params array
      * @param $fields array
      * @return array|null
      */
-    public function getRandom($tube, $fields = [])
+    public function getRandom($tube, $params = [], $fields = [])
     {
         $searchQuery = [
             "function_score" => [
@@ -149,7 +150,7 @@ class Searches extends AbstractIndex
                         ]
                     ]]
             ]];
-        $data = $this->buildRequestBody($searchQuery, [], $fields);
+        $data = $this->buildRequestBody($searchQuery, $params, $fields);
         return $this->search($data);
 
     }
