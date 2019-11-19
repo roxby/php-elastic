@@ -131,7 +131,7 @@ class VideosTest extends TestCase
 
         $this->videosIndex->indexRefresh();
 
-        $count = $this->videosIndex->countForTube($this->tube);
+        $count = $this->videosIndex->count(["term" => ["tube" => $this->tube]]);
         $this->assertEquals(0, $count);
     }
 

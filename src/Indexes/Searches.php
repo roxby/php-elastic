@@ -5,6 +5,8 @@ namespace Roxby\Elastic\Indexes;
 class Searches extends AbstractIndex
 {
     public $name = "searches";
+    const  MIN_ALLOWED_COUNT = 100;
+
     protected static $instance = null;
 
     public static function getInstance($hosts = [])
@@ -39,7 +41,16 @@ class Searches extends AbstractIndex
     }
 
 
-    private function buildRequestBody(array $searchQuery, array $sort, $params = [], $fields = [])
+    /**
+     * @param array $searchQuery
+     * @param array $params possible keys:
+     * - size (limit) integer
+     * - from(skip) integer
+     * - sort - array,
+     * @param array $fields - document fields to return
+     * @return array
+     */
+    private function buildRequestBody(array $searchQuery, $params = [], $fields = [])
     {
         $defaults = [
             "from" => 0,
@@ -50,9 +61,11 @@ class Searches extends AbstractIndex
             "_source" => $fields, //if not empty - get only specified fields, otherwise get all
             "from" => $params['from'],
             "size" => $params['size'],
-            "query" => $searchQuery,
-            "sort" => $sort
+            "query" => $searchQuery
         ];
+        if (isset($params['sort']) && is_array($params['sort'])) {
+            $body['sort'] = $params['sort'];
+        }
         return [
             "index" => $this->name,
             "body" => $body
@@ -88,8 +101,7 @@ class Searches extends AbstractIndex
                 ]
             ]
         ];
-        $sort = ["count" => ["order" => "desc"]];
-        $data = $this->buildRequestBody($searchQuery, $sort, $params, $fields);
+        $data = $this->buildRequestBody($searchQuery, $params, $fields);
         return $this->search($data);
     }
 
@@ -102,13 +114,45 @@ class Searches extends AbstractIndex
      */
     public function getMostPopular($tube, array $params = [], array $fields = [])
     {
-        //filter by tube only and sort by count
-        $searchQuery = ["term" => ["tube" => $tube]];
-        $sort = ["count" => ["order" => "desc"]];
-        $data = $this->buildRequestBody($searchQuery, $sort, $params, $fields);
+        $defaults = [
+            "sort" => ["count" => ["order" => "desc"]]
+        ];
+        $params = array_merge($defaults, $params);
+        $searchQuery = [
+            "bool" => [
+                "filter" => ["term" => ["tube" => $tube]],
+                "must" => ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
+            ]
+        ];
+        $data = $this->buildRequestBody($searchQuery, $params, $fields);
         return $this->search($data);
     }
 
+    /**
+     * get randomized queries
+     * @param $tube string
+     * @param $fields array
+     * @return array|null
+     */
+    public function getRandom($tube, $fields = [])
+    {
+        $searchQuery = [
+            "function_score" => [
+                "functions" => [
+                    ["random_score" => new \stdClass()]
+                ],
+                "query" => [
+                    "bool" => [
+                        "must" => [
+                            ["term" => ["tube" => $tube]],
+                            ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
+                        ]
+                    ]]
+            ]];
+        $data = $this->buildRequestBody($searchQuery, [], $fields);
+        return $this->search($data);
+
+    }
 
     private function normalizeQuery($query)
     {
@@ -128,7 +172,7 @@ class Searches extends AbstractIndex
                     "params" => ["time" => date("Y-m-d H:i:s")]
                 ],
                 "upsert" => [
-                    "query" => $query,
+                    "query" => strtolower($query),
                     "tube" => $tube,
                     "count" => 1,
                     "last_updated" => date("Y-m-d H:i:s")
