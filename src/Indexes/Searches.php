@@ -154,10 +154,15 @@ class Searches extends AbstractIndex
 
     }
 
+    /**
+     * clean sent query - allow only alphanumeric and spaces
+     * @param $query
+     * @return string|string[]|null
+     */
     private function normalizeQuery($query)
     {
-        $query = strtolower($query);
-        return trim(str_replace(" ", "_", $query));
+        $query = trim(strtolower($query));
+        return preg_replace('~[^0-9a-z\\s]~i', '', $query);
     }
 
     public function upsert($tube, $query)
@@ -204,6 +209,12 @@ class Searches extends AbstractIndex
         return $this->delete($params);
     }
 
+    /**
+     * build document id as hash of normalized query + tube name
+     * @param $tube
+     * @param $query
+     * @return string
+     */
     protected function generateId($tube, $query)
     {
         $query = $this->normalizeQuery($query);
