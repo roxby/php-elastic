@@ -230,8 +230,6 @@ class Videos extends AbstractIndex
                 return ["external_id" => ["order" => "desc"]];
             case self::SORT_BY_ID_ASC:
                 return ["external_id" => ["order" => "asc"]];
-            case self::SORT_BY_POST_DATE:
-                return ["post_date" => ["order" => "desc"]];
             case self::SORT_BY_DURATION:
                 return ["duration" => ["order" => "desc"]];
             case self::SORT_MOST_VIEWED:
@@ -250,6 +248,7 @@ class Videos extends AbstractIndex
                 return ["comments_count" => ["order" => "desc"]];
             case self::SORT_BY_FAVOURITES:
                 return ["favourites_count" => ["order" => "desc"]];
+            case self::SORT_BY_POST_DATE:
             default:
                 return ["post_date" => ["order" => "desc"]];
         }
