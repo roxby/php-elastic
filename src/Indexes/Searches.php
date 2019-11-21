@@ -188,8 +188,13 @@ class Searches extends AbstractIndex
     }
 
 
-
-    public function getOne($tube, $query)
+    /**
+     * get one document by id
+     * @param $tube
+     * @param $query
+     * @return array|null
+     */
+    public function getById($tube, $query)
     {
         $params = [
             'index' => $this->name,

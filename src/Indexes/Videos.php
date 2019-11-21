@@ -302,7 +302,13 @@ class Videos extends AbstractIndex
         return $this->bulkAdd($finalD);
     }
 
-    public function getOne($tube, $external_id)
+    /**
+     * get one document by id
+     * @param $tube
+     * @param $external_id
+     * @return array|null
+     */
+    public function getById($tube, $external_id)
     {
         $params = [
             'index' => $this->name,

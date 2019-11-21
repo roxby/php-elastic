@@ -57,7 +57,7 @@ class VideosTest extends TestCase
 
     public function getDocument()
     {
-        $res = $this->videosIndex->getOne($this->tube, 1);
+        $res = $this->videosIndex->getById($this->tube, 1);
         $this->assertTrue(!is_null($res));
     }
 

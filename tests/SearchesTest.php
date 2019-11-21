@@ -47,7 +47,7 @@ class SearchesTest extends TestCase
 
     public function documentExist()
     {
-        $res = $this->searchesIndex->getOne($this->tube, $this->query_first);
+        $res = $this->searchesIndex->getById($this->tube, $this->query_first);
         $this->assertTrue(!is_null($res));
         $this->assertEquals(1, $res['count']);
     }
@@ -58,7 +58,7 @@ class SearchesTest extends TestCase
         $this->assertEquals(1, $res);
         $this->refresh();
 
-        $res = $this->searchesIndex->getOne($this->tube, $this->query_first);
+        $res = $this->searchesIndex->getById($this->tube, $this->query_first);
         $this->assertEquals(2, $res['count']);
     }
 
