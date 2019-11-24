@@ -37,6 +37,7 @@ abstract class AbstractIndex
     }
 
     /**
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/index_management.html
      * create new index
      * @return bool
      */
@@ -79,7 +80,7 @@ abstract class AbstractIndex
 
     /**
      * Get document by its id - uid in our case
-     * @see https://www.elastic.co/guide/en/elasticsearch/reference/6.6/docs-get.html
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/getting_documents.html
      * @param $params
      * @return array|null
      */
@@ -96,7 +97,7 @@ abstract class AbstractIndex
 
     /**
      * Add single document
-     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_indexing_documents.html - single doc indexing
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/indexing_documents.html#_single_document_indexing
      * @param $query
      * @return bool
      */
@@ -114,7 +115,7 @@ abstract class AbstractIndex
     /**
      * bulk indexing of documents
      * bulk API expects JSON action/metadata pairs. We're pushing meta data and object itself for each inserted document
-     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_indexing_documents.html - bulk indexing
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/indexing_documents.html#_bulk_indexing
      * @param $data
      * @return bool
      */
@@ -128,7 +129,7 @@ abstract class AbstractIndex
 
     /**
      * Update single document
-     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_updating_documents.html
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/updating_documents.html
      * @param $params
      * @return bool
      */
@@ -156,7 +157,7 @@ abstract class AbstractIndex
 
     /**
      * Delete single document by id
-     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_deleting_documents.html
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/deleting_documents.html
      * @param $params
      * @return bool
      */
@@ -184,7 +185,7 @@ abstract class AbstractIndex
 
 
     /**
-     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/_search_operations.html
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/search_operations.html
      * @param array $params
      * @return array|null
      */
@@ -198,9 +199,10 @@ abstract class AbstractIndex
                     return $res["_source"];
                 }, $results["hits"]);
 
+                $total = $results["total"]["value"] ?? 0;
                 return [
                     "data" => $sources,
-                    "total" => $results["total"]
+                    "total" => $total
                 ];
             }
             return null;
@@ -229,7 +231,6 @@ abstract class AbstractIndex
     {
         $params = [
             'index' => $this->name,
-            'type' => '_doc',
             'body' => [
                 "query" => $query
             ]
