@@ -21,7 +21,7 @@ class Searches extends AbstractIndex
     /**
      * @return array
      */
-    public function buildMapping()
+    public function getProps()
     {
         return [
             "query" => [
@@ -36,6 +36,22 @@ class Searches extends AbstractIndex
             ],
             "tube" => [
                 "type" => "keyword"
+            ],
+            "query_de" => [
+                "type" => "text",
+                "fields" => [
+                    "raw" => [
+                        "type" => "keyword"
+                    ]
+                ]
+            ],
+            "query_es" => [
+                "type" => "text",
+                "fields" => [
+                    "raw" => [
+                        "type" => "keyword"
+                    ]
+                ]
             ]
         ];
     }
@@ -82,7 +98,7 @@ class Searches extends AbstractIndex
      * @param array $fields
      * @return array|null
      */
-    public function searchMany($tube, $query, array $params = [], $fields = [])
+    public function getMany($tube, $query, array $params = [], $fields = [])
     {
         //filter by tube, get related queries, but not the one is sent
         $searchQuery = [
@@ -102,6 +118,29 @@ class Searches extends AbstractIndex
             ]
         ];
         $data = $this->buildRequestBody($searchQuery, $params, $fields);
+        return $this->search($data);
+    }
+
+    /**
+     * search document with parametrized field=>value pair fro specific tube
+     * possible only with keyword or integer field types
+     * search for exact match
+     * @param $tube string
+     * @param $field string
+     * @param $value string
+     * @return array|null
+     */
+    public function getOne($tube, $field, $value)
+    {
+        $searchQuery = [
+            "bool" => [
+                "must" => [
+                    ["term" => ["tube" => $tube]],
+                    ["term" => [$field => $value]]
+                ]
+            ]
+        ];
+        $data = $this->buildRequestBody($searchQuery);
         return $this->search($data);
     }
 
@@ -131,10 +170,11 @@ class Searches extends AbstractIndex
     /**
      * get randomized queries
      * @param $tube string
+     * @param $params array
      * @param $fields array
      * @return array|null
      */
-    public function getRandom($tube, $fields = [])
+    public function getRandom($tube, $params = [], $fields = [])
     {
         $searchQuery = [
             "function_score" => [
@@ -149,13 +189,12 @@ class Searches extends AbstractIndex
                         ]
                     ]]
             ]];
-        $data = $this->buildRequestBody($searchQuery, [], $fields);
+        $data = $this->buildRequestBody($searchQuery, $params, $fields);
         return $this->search($data);
-
     }
 
     /**
-     * clean sent query - allow only alphanumeric and spaces
+     * clean query - allow only alphanumeric and spaces
      * @param $query
      * @return string|string[]|null
      */
@@ -165,23 +204,39 @@ class Searches extends AbstractIndex
         return preg_replace('~[^0-9a-z\\s]~i', '', $query);
     }
 
-    public function upsert($tube, $query)
+    /**
+     * insert or update document. if exist - only increment counter
+     * @param $tube
+     * @param $query
+     * @param array $params
+     * @return bool
+     */
+    public function upsert($tube, $query, $params = [])
     {
+        //build initial data 2 store in case document not yet exist
+        $data2store = [
+            "query" => $this->normalizeQuery($query),
+            "tube" => $tube,
+            "count" => 1,
+            "last_updated" => date("Y-m-d H:i:s")
+        ];
+
+        $allowedProps = $this->getProps();
+        //loop through sent data, normalize each text field and add to data
+        foreach ($params as $key => $value) {
+            if(isset($allowedProps[$key]) && $allowedProps[$key]["type"] === "text") {
+                $data2store[$key] = $this->normalizeQuery($value);
+            }
+        }
         $params = [
             "index" => $this->name,
-            "type" => "_doc",
             "id" => $this->generateId($tube, $query),
             "body" => [
                 "script" => [
                     "source" => "ctx._source.count++; ctx._source.last_updated=params.time;",
                     "params" => ["time" => date("Y-m-d H:i:s")]
                 ],
-                "upsert" => [
-                    "query" => strtolower($query),
-                    "tube" => $tube,
-                    "count" => 1,
-                    "last_updated" => date("Y-m-d H:i:s")
-                ]
+                "upsert" => $data2store
             ]
         ];
         return $this->update($params);
@@ -198,7 +253,6 @@ class Searches extends AbstractIndex
     {
         $params = [
             'index' => $this->name,
-            'type' => '_doc',
             'id' => $this->generateId($tube, $query)
         ];
         return $this->get($params);
@@ -208,21 +262,20 @@ class Searches extends AbstractIndex
     {
         $params = [
             'index' => $this->name,
-            'type' => '_doc',
             'id' => $this->generateId($tube, $query)
         ];
         return $this->delete($params);
     }
 
     /**
-     * build document id as hash of normalized query + tube name
+     * build document id as hash of normalized query+tube
      * @param $tube
      * @param $query
      * @return string
      */
     protected function generateId($tube, $query)
     {
-        $query = $this->normalizeQuery($query);
+        $query = str_replace(" ", "_", $this->normalizeQuery($query));
         $final = $tube . "-" . $query;
         return md5($final);
     }
