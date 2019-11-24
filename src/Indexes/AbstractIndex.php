@@ -51,7 +51,7 @@ abstract class AbstractIndex
                         '_source' => [
                             'enabled' => true
                         ],
-                        'properties' => $this->buildMapping()
+                        'properties' => $this->getProps()
                     ]
                 ]
             ];
@@ -64,8 +64,8 @@ abstract class AbstractIndex
     }
 
     /**
-     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/index_management.html
      * return index mapping
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/index_management.html
      * @return array|null
      */
     public function getMapping()
@@ -242,7 +242,7 @@ abstract class AbstractIndex
     /**
      * @return array of index properties
      */
-    abstract function buildMapping();
+    abstract function getProps();
 
 
 }

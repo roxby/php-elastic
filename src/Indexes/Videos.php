@@ -45,7 +45,7 @@ class Videos extends AbstractIndex
      * @see https://qbox.io/blog/elasticsearch-english-analyzer-customize
      * @return array
      */
-    public function buildMapping()
+    public function getProps()
     {
         return [
             'external_id' => ['type' => 'integer'],
