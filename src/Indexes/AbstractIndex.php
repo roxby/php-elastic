@@ -65,17 +65,15 @@ abstract class AbstractIndex
     }
 
     /**
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/index_management.html
+     * return index mapping
      * @return array|null
      */
     public function getMapping()
     {
        try {
-           $params = [
-               'index' => $this->name,
-               'type' => '_doc',
-           ];
-           $res = $this->client->indices()->getMapping($params);
-           return isset($res[$this->name]['mappings']['_doc']['properties']) ? $res[$this->name]['mappings']['_doc']['properties'] : [];
+           $res = $this->client->indices()->getMapping(['index' => $this->name]);
+           return $res[$this->name]['mappings']['properties'] ?? [];
        } catch (\Exception $exception) {
            return null;
        }
