@@ -68,7 +68,7 @@ class SearchesTest extends TestCase
     {
         $this->searchesIndex->upsert($this->tube, $this->query_second);
         $this->refresh();
-        $res = $this->searchesIndex->searchMany($this->tube, 'dog');
+        $res = $this->searchesIndex->getMany($this->tube, 'dog');
         //var_dump($res);
         //$this->assertTrue(!empty($res['data']));
         //$this->assertEquals(2, $res['total']);
