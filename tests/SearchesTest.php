@@ -69,11 +69,10 @@ class SearchesTest extends TestCase
         $this->searchesIndex->upsert($this->tube, $this->query_second);
         $this->refresh();
         $res = $this->searchesIndex->getMany($this->tube, 'dog');
-        //var_dump($res);
-        //$this->assertTrue(!empty($res['data']));
-        //$this->assertEquals(2, $res['total']);
-
+        $this->assertTrue(!empty($res['data']));
+        $this->assertEquals(2, $res['total']);
     }
+
     public function delete()
     {
         $res = $this->searchesIndex->deleteOne($this->tube, $this->query_first);
