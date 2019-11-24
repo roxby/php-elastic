@@ -47,12 +47,10 @@ abstract class AbstractIndex
                 'index' => $this->name,
                 'body' => [
                     'mappings' => [
-                        '_doc' => [
-                            '_source' => [
-                                'enabled' => true
-                            ],
-                            'properties' => $this->buildMapping()
-                        ]
+                        '_source' => [
+                            'enabled' => true
+                        ],
+                        'properties' => $this->buildMapping()
                     ]
                 ]
             ];
