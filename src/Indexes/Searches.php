@@ -39,6 +39,7 @@ class Searches extends AbstractIndex
             ],
             "query_de" => [
                 "type" => "text",
+                "analyzer" => "german",
                 "fields" => [
                     "raw" => [
                         "type" => "keyword"
@@ -47,6 +48,16 @@ class Searches extends AbstractIndex
             ],
             "query_es" => [
                 "type" => "text",
+                "analyzer" => "spanish",
+                "fields" => [
+                    "raw" => [
+                        "type" => "keyword"
+                    ]
+                ]
+            ],
+            "query_ru" => [
+                "type" => "text",
+                "analyzer" => "russian",
                 "fields" => [
                     "raw" => [
                         "type" => "keyword"
@@ -95,26 +106,24 @@ class Searches extends AbstractIndex
      * @param array $params
      * - from integer
      * - size integer
+     * - lang string (possible values - en, de, es, ru)
      * @param array $fields
      * @return array|null
      */
     public function getMany($tube, $query, array $params = [], $fields = [])
     {
+        //if language params exist prop name should be "query_{lang}", otherwise, just query - default english version
+        $queryProp = isset($params["lang"]) ? $this->getTranslateQueryName($params["lang"]) : "query";
         //filter by tube, get related queries, but not the one is sent
         $searchQuery = [
             "bool" => [
-                "must" => [
-                    "match" => [
-                        "query" => $query,
-                    ]
-
-                ],
+                "must" => ["match" => [$queryProp => $query]],
                 "filter" => [
                     "term" => ["tube" => $tube]
                 ],
-                "must_not" => [
-                    ["terms" => ["_id" => [$this->generateId($tube, $query)]]] //not current query
-                ]
+//                "must_not" => [
+//                    ["terms" => ["_id" => [$this->generateId($tube, $query)]]] //not current query
+//                ]
             ]
         ];
         $data = $this->buildRequestBody($searchQuery, $params, $fields);
@@ -157,10 +166,18 @@ class Searches extends AbstractIndex
             "sort" => ["count" => ["order" => "desc"]]
         ];
         $params = array_merge($defaults, $params);
+
+        $mustRule = [
+            ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
+        ];
+        if(isset($params["lang"])) {
+            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($params["lang"])]];
+        }
+
         $searchQuery = [
             "bool" => [
                 "filter" => ["term" => ["tube" => $tube]],
-                "must" => ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
+                "must" => $mustRule
             ]
         ];
         $data = $this->buildRequestBody($searchQuery, $params, $fields);
@@ -176,6 +193,14 @@ class Searches extends AbstractIndex
      */
     public function getRandom($tube, $params = [], $fields = [])
     {
+        $mustRule = [
+            ["term" => ["tube" => $tube]],
+            ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
+        ];
+
+        if(isset($params["lang"])) {
+            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($params["lang"])]];
+        }
         $searchQuery = [
             "function_score" => [
                 "functions" => [
@@ -183,10 +208,7 @@ class Searches extends AbstractIndex
                 ],
                 "query" => [
                     "bool" => [
-                        "must" => [
-                            ["term" => ["tube" => $tube]],
-                            ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
-                        ]
+                        "must" => $mustRule
                     ]]
             ]];
         $data = $this->buildRequestBody($searchQuery, $params, $fields);
@@ -200,8 +222,9 @@ class Searches extends AbstractIndex
      */
     private function normalizeQuery($query)
     {
-        $query = trim(strtolower($query));
-        return preg_replace('~[^0-9a-z\\s]~i', '', $query);
+        $query = strtolower($query);
+        //allow any letter + any number + whitespace
+        return trim(preg_replace('/[^\p{L}\p{N}\s]/u', '', $query));
     }
 
     /**
@@ -278,6 +301,19 @@ class Searches extends AbstractIndex
         $query = str_replace(" ", "_", $this->normalizeQuery($query));
         $final = $tube . "-" . $query;
         return md5($final);
+    }
+
+    /**
+     * @param $lang
+     * @return string|null
+     */
+    private function getTranslateQueryName($lang)
+    {
+        $langs = ["es", "de", "ru"];
+        if(!in_array($lang, $langs)) {
+            return null;
+        }
+        return "query_${lang}";
     }
 
 

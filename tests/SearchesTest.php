@@ -6,7 +6,7 @@ class SearchesTest extends TestCase
 {
     public $searchesIndex;
     public $hosts = ['localhost:9200'];
-    public $tube = "test";
+    public $tube = "phpunit_test";
     public $query_first = "lazy dog";
     public $query_second = "diligent dog";
 

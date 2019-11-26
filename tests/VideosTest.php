@@ -10,7 +10,7 @@ class VideosTest extends TestCase
     public $hosts = ['localhost:9200'];
     public $initExternalId = 10000000;
 
-    public $tube = "test";
+    public $tube = "phpunit_test";
 
     public function __construct($name = null, array $data = [], $dataName = '')
     {
