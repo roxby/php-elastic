@@ -103,21 +103,21 @@ class Searches extends AbstractIndex
      * perform search - get queries related to sent query
      * @param $tube
      * @param $query
+     * @param $lang string (possible values - en, de, es, ru)
      * @param array $params
      * - from integer
      * - size integer
-     * - lang string (possible values - en, de, es, ru)
      * @param array $fields
      * @return array|null
      */
-    public function getMany($tube, $query, array $params = [], $fields = [])
+    public function getMany($tube, $query, $lang, array $params = [], $fields = [])
     {
         //if language params exist prop name should be "query_{lang}", otherwise, just query - default english version
-        $queryProp = isset($params["lang"]) ? $this->getTranslateQueryName($params["lang"]) : "query";
+        $queryProp = ($lang == "en") ?  "query" : $this->getTranslateQueryName($lang);
         //filter by tube, get related queries, but not the one is sent
         $searchQuery = [
             "bool" => [
-                "must" => ["match" => [$queryProp => $query]],
+                "must" => ["match" => [$queryProp => $this->normalizeQuery($query)]],
                 "filter" => [
                     "term" => ["tube" => $tube]
                 ],
@@ -145,12 +145,17 @@ class Searches extends AbstractIndex
             "bool" => [
                 "must" => [
                     ["term" => ["tube" => $tube]],
-                    ["term" => [$field => $value]]
+                    ["term" => ["${field}.raw" => $this->normalizeQuery($value)]]
                 ]
             ]
         ];
+
         $data = $this->buildRequestBody($searchQuery);
-        return $this->search($data);
+        $res = $this->search($data);
+        if(isset($res["data"]) && count($res["data"])) {
+            return $res["data"][0];
+        }
+        return null;
     }
 
     /**
@@ -251,7 +256,7 @@ class Searches extends AbstractIndex
                 $data2store[$key] = $this->normalizeQuery($value);
             }
         }
-        $params = [
+        $request = [
             "index" => $this->name,
             "id" => $this->generateId($tube, $query),
             "body" => [
@@ -262,7 +267,7 @@ class Searches extends AbstractIndex
                 "upsert" => $data2store
             ]
         ];
-        return $this->update($params);
+        return $this->update($request);
     }
 
 
