@@ -256,11 +256,18 @@ class Searches extends AbstractIndex
             "last_updated" => date("Y-m-d H:i:s")
         ];
 
+        //build upsert script sting: if document exist increment counter && update timestamp
+        $scriptStr = "ctx._source.count++; ctx._source.last_updated=params.time;";
+
         $allowedProps = $this->getProps();
         //loop through sent data, normalize each text field and add to data
         foreach ($params as $key => $value) {
-            if(isset($allowedProps[$key]) && $allowedProps[$key]["type"] === "text") {
+            if (isset($allowedProps[$key]) && $allowedProps[$key]["type"] === "text") {
                 $data2store[$key] = $this->normalizeQuery($value);
+                //add fields to source script iin case there not yet exist
+                //for example existing document without query_de field
+                $scriptStr .= "ctx._source.$key=\"" . $data2store[$key] . "\"";
+
             }
         }
         $request = [
@@ -268,7 +275,7 @@ class Searches extends AbstractIndex
             "id" => $this->generateId($tube, $query),
             "body" => [
                 "script" => [
-                    "source" => "ctx._source.count++; ctx._source.last_updated=params.time;",
+                    "source" => $scriptStr,
                     "params" => ["time" => date("Y-m-d H:i:s")]
                 ],
                 "upsert" => $data2store
@@ -332,7 +339,7 @@ class Searches extends AbstractIndex
         if(!in_array($lang, $langs)) {
             return null;
         }
-        return "query_${lang}";
+        return "query_$lang";
     }
 
 
