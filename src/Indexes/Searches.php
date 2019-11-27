@@ -131,7 +131,7 @@ class Searches extends AbstractIndex
     }
 
     /**
-     * search document with parametrized field=>value pair fro specific tube
+     * search document with parametrized field=>value pair for specific tube
      * possible only with keyword or integer field types
      * search for exact match
      * @param $tube string
@@ -159,13 +159,14 @@ class Searches extends AbstractIndex
     }
 
     /**
-     * perform search get most popular searches
+     * get most popular queries
      * @param $tube
+     * @param $lang
      * @param array $params
      * @param array $fields
      * @return array|null
      */
-    public function getMostPopular($tube, array $params = [], array $fields = [])
+    public function getMostPopular($tube, $lang, array $params = [], array $fields = [])
     {
         $defaults = [
             "sort" => ["count" => ["order" => "desc"]]
@@ -175,8 +176,11 @@ class Searches extends AbstractIndex
         $mustRule = [
             ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
         ];
-        if(isset($params["lang"])) {
-            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($params["lang"])]];
+        //for non english languages - search only document containing non english query
+        //for spanish - get only documents containing query_es property
+        //fro german - query_de property
+        if ($lang != "en") {
+            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($lang)]];
         }
 
         $searchQuery = [
@@ -192,19 +196,22 @@ class Searches extends AbstractIndex
     /**
      * get randomized queries
      * @param $tube string
+     * @param $lang
      * @param $params array
      * @param $fields array
      * @return array|null
      */
-    public function getRandom($tube, $params = [], $fields = [])
+    public function getRandom($tube, $lang, $params = [], $fields = [])
     {
         $mustRule = [
             ["term" => ["tube" => $tube]],
             ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
         ];
-
-        if(isset($params["lang"])) {
-            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($params["lang"])]];
+        //for non english languages - search only document containing non english query
+        //for spanish - get only documents containing query_es property
+        //fro german - query_de property
+        if ($lang != "en") {
+            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($lang)]];
         }
         $searchQuery = [
             "function_score" => [
@@ -286,6 +293,12 @@ class Searches extends AbstractIndex
         return $this->get($params);
     }
 
+    /**
+     * delete one document by id
+     * @param $tube
+     * @param $query
+     * @return bool
+     */
     public function deleteOne($tube, $query)
     {
         $params = [
@@ -309,6 +322,7 @@ class Searches extends AbstractIndex
     }
 
     /**
+     * build document prop name, like "query_es"
      * @param $lang
      * @return string|null
      */
