@@ -20,21 +20,24 @@ class Translator
 
     /**
      * @param $query
-     * @param $sourceLanguage
      * @param string $targetLanguage
      * @return array
      */
-    public function translate($query, $sourceLanguage, $targetLanguage = 'en')
+    public function translate($query, $targetLanguage = 'en')
     {
         try {
             $result = $this->translator->translate($query, [
-                'source' => $sourceLanguage,
                 'target' => $targetLanguage
             ]);
-            return [
-                'success' => isset($result['text']),
-                'text' => $result['text'] ?? null
-            ];
+            if (isset($result['text']) && isset($result['source'])) {
+                return [
+                    'success' => true,
+                    'text' => $result['text'],
+                    'source' => $result['source']
+                ];
+            } else {
+                return ['success' => false];
+            }
         } catch (\Exception $exception) {
             return [
                 'success' => false,
