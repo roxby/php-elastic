@@ -25,7 +25,16 @@ class Searches extends AbstractIndex
     {
         return [
             "query" => [
-                "type" => "text"
+                "type" => "text",
+                "fields" => [
+                    "keyword" => [
+                        "type" => "keyword"
+                    ],
+                    "english" => [
+                        "type" => "text",
+                        "analyzer" => "english",
+                    ]
+                ]
             ],
             "last_updated" => [
                 "type" => "date",
@@ -41,26 +50,24 @@ class Searches extends AbstractIndex
                 "type" => "text",
                 "analyzer" => "german",
                 "fields" => [
-                    "raw" => [
+                    "keyword" => [
                         "type" => "keyword"
+                    ],
+                    "german" => [
+                        "type" => "text",
+                        "analyzer" => "german",
                     ]
                 ]
             ],
             "query_es" => [
                 "type" => "text",
-                "analyzer" => "spanish",
                 "fields" => [
-                    "raw" => [
+                    "keyword" => [
                         "type" => "keyword"
-                    ]
-                ]
-            ],
-            "query_ru" => [
-                "type" => "text",
-                "analyzer" => "russian",
-                "fields" => [
-                    "raw" => [
-                        "type" => "keyword"
+                    ],
+                    "spanish" => [
+                        "type" => "text",
+                        "analyzer" => "spanish",
                     ]
                 ]
             ]
@@ -113,11 +120,21 @@ class Searches extends AbstractIndex
     public function getMany($tube, $query, $lang, array $params = [], $fields = [])
     {
         //if language params exist prop name should be "query_{lang}", otherwise, just query - default english version
-        $queryProp = ($lang == "en") ?  "query" : $this->getTranslateQueryName($lang);
+        $queryProp = $this->getQueryPropName($lang);
+        $fieldsToSearch = [$queryProp];
+        $analyzer = $this->getAnalyzerField($lang);
+        if ($analyzer) {
+            $fieldsToSearch[] = "$queryProp.$analyzer";
+        }
         //filter by tube, get related queries, but not the one is sent
         $searchQuery = [
             "bool" => [
-                "must" => ["match" => [$queryProp => $this->normalizeQuery($query)]],
+                "must" => [
+                    "multi_match" => [
+                        "query" => $this->normalizeQuery($query),
+                        "fields" => $fieldsToSearch
+                    ]
+                ],
                 "filter" => [
                     "term" => ["tube" => $tube]
                 ],
@@ -145,7 +162,7 @@ class Searches extends AbstractIndex
             "bool" => [
                 "must" => [
                     ["term" => ["tube" => $tube]],
-                    ["term" => ["${field}.raw" => $this->normalizeQuery($value)]]
+                    ["term" => ["${field}.keyword" => $this->normalizeQuery($value)]]
                 ]
             ]
         ];
@@ -180,7 +197,7 @@ class Searches extends AbstractIndex
         //for spanish - get only documents containing query_es property
         //fro german - query_de property
         if ($lang != "en") {
-            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($lang)]];
+            $mustRule[] = ["exists" => ["field" => $this->getQueryPropName($lang)]];
         }
 
         $searchQuery = [
@@ -211,7 +228,7 @@ class Searches extends AbstractIndex
         //for spanish - get only documents containing query_es property
         //fro german - query_de property
         if ($lang != "en") {
-            $mustRule[] = ["exists" => ["field" => $this->getTranslateQueryName($lang)]];
+            $mustRule[] = ["exists" => ["field" => $this->getQueryPropName($lang)]];
         }
         $searchQuery = [
             "function_score" => [
@@ -328,18 +345,26 @@ class Searches extends AbstractIndex
         return md5($final);
     }
 
+
+    private function getAnalyzerField($lang)
+    {
+        $analyzers = [
+            "en" => "english",
+            "es" => "spanish",
+            "de" => "german"
+        ];
+        return $analyzers[$lang] ?? null;
+    }
+
+
     /**
      * build document prop name, like "query_es"
      * @param $lang
      * @return string|null
      */
-    private function getTranslateQueryName($lang)
+    private function getQueryPropName($lang)
     {
-        $langs = ["es", "de", "ru"];
-        if(!in_array($lang, $langs)) {
-            return null;
-        }
-        return "query_$lang";
+        return $lang == "en" ? "query" : "query_$lang";
     }
 
 
