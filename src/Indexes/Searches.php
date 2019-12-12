@@ -148,7 +148,9 @@ class Searches extends AbstractIndex
     }
 
     /**
-     * search document with parametrized field=>value pair for specific tube
+     * search document for specific tube
+     * search by id (english query + tube name) or by non english query prop + non english query value
+     * (query_de + some german phrase)
      * possible only with keyword or integer field types
      * search for exact match
      * @param $tube string
@@ -162,7 +164,15 @@ class Searches extends AbstractIndex
             "bool" => [
                 "must" => [
                     ["term" => ["tube" => $tube]],
-                    ["term" => ["${field}.keyword" => $this->normalizeQuery($value)]]
+                    [
+                        "bool" => [
+                            "should" => [
+                                ["term" => ["${field}.keyword" => $this->normalizeQuery($value)]],
+                                ["ids" => ["values" => [$this->generateId($tube, $value)]]]
+                            ]
+                        ]
+                    ]
+
                 ]
             ]
         ];
