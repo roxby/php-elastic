@@ -39,7 +39,7 @@ class SearchesTest extends TestCase
 
     public function addSingleDocument()
     {
-        $res = $this->searchesIndex->upsert($this->tube, $this->query_first);
+        $res = $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_first]);
         $this->assertTrue($res);
         $this->refresh();
     }
@@ -54,7 +54,7 @@ class SearchesTest extends TestCase
 
     public function incrementDocumentCount()
     {
-        $res = $this->searchesIndex->upsert($this->tube, $this->query_first);
+        $res = $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_first]);
         $this->assertEquals(1, $res);
         $this->refresh();
 
@@ -66,7 +66,7 @@ class SearchesTest extends TestCase
 
     public function search()
     {
-        $this->searchesIndex->upsert($this->tube, $this->query_second);
+        $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_second]);
         $this->refresh();
         $res = $this->searchesIndex->getMany($this->tube, 'dog');
         $this->assertTrue(!empty($res['data']));

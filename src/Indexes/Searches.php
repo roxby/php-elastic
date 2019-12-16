@@ -247,12 +247,14 @@ class Searches extends AbstractIndex
 
     private function prepareUpdateScript($params)
     {
-        $now = date("Y-m-d H:i:s");
-        $scriptStr = "ctx._source.count++; ctx._source.last_updated=$now;";
+        $scriptStr = "ctx._source.count++; ctx._source.last_updated=params.time;";
         foreach ($params as $key => $value) {
-            $scriptStr .= "if (!ctx._source.$key != null) { ctx._source.$key = $value; }";
+            $scriptStr .= "if (ctx._source.$key == null) { ctx._source.$key = \"$value\"; }";
         }
-        return ["source" => $scriptStr];
+        return [
+            "source" => $scriptStr,
+            "params" => ["time" => date("Y-m-d H:i:s")]
+        ];
     }
     /**
      * insert or update document. if exist - only increment counter
