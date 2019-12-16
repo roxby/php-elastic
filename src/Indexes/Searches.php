@@ -24,7 +24,7 @@ class Searches extends AbstractIndex
     public function getProps()
     {
         return [
-            "query" => [
+            "query_en" => [
                 "type" => "text",
                 "fields" => [
                     "keyword" => [
@@ -110,37 +110,30 @@ class Searches extends AbstractIndex
      * perform search - get queries related to sent query
      * @param $tube
      * @param $query
-     * @param $lang string (possible values - en, de, es, ru)
      * @param array $params
      * - from integer
      * - size integer
      * @param array $fields
      * @return array|null
      */
-    public function getMany($tube, $query, $lang, array $params = [], $fields = [])
+    public function getMany($tube, $query, array $params = [], $fields = [])
     {
-        //if language params exist prop name should be "query_{lang}", otherwise, just query - default english version
-        $queryProp = $this->getQueryPropName($lang);
-        $fieldsToSearch = [$queryProp];
-        $analyzer = $this->getAnalyzerField($lang);
-        if ($analyzer) {
-            $fieldsToSearch[] = "$queryProp.$analyzer";
-        }
+        $normalized = $this->normalizeQuery($query);
         //filter by tube, get related queries, but not the one is sent
         $searchQuery = [
             "bool" => [
                 "must" => [
                     "multi_match" => [
-                        "query" => $this->normalizeQuery($query),
-                        "fields" => $fieldsToSearch
+                        "query" => $normalized,
+                        "fields" => ["query_en", "query_en.english"]
                     ]
                 ],
                 "filter" => [
                     "term" => ["tube" => $tube]
                 ],
-//                "must_not" => [
-//                    ["terms" => ["_id" => [$this->generateId($tube, $query)]]] //not current query
-//                ]
+                "must_not" => [
+                    ["terms" => ["query_en.keyword" => $normalized]] //not current query
+                ]
             ]
         ];
         $data = $this->buildRequestBody($searchQuery, $params, $fields);
@@ -149,9 +142,7 @@ class Searches extends AbstractIndex
 
     /**
      * search document for specific tube
-     * search by id (english query + tube name) or by non english query prop + non english query value
-     * (query_de + some german phrase)
-     * possible only with keyword or integer field types
+     * possible only with keyword  field types
      * search for exact match
      * @param $tube string
      * @param $field string
@@ -164,15 +155,7 @@ class Searches extends AbstractIndex
             "bool" => [
                 "must" => [
                     ["term" => ["tube" => $tube]],
-                    [
-                        "bool" => [
-                            "should" => [
-                                ["term" => ["${field}.keyword" => $this->normalizeQuery($value)]],
-                                ["ids" => ["values" => [$this->generateId($tube, $value)]]]
-                            ]
-                        ]
-                    ]
-
+                    ["term" => ["${field}.keyword" => $this->normalizeQuery($value)]]
                 ]
             ]
         ];
@@ -188,32 +171,23 @@ class Searches extends AbstractIndex
     /**
      * get most popular queries
      * @param $tube
-     * @param $lang
      * @param array $params
      * @param array $fields
      * @return array|null
      */
-    public function getMostPopular($tube, $lang, array $params = [], array $fields = [])
+    public function getMostPopular($tube, array $params = [], array $fields = [])
     {
         $defaults = [
             "sort" => ["count" => ["order" => "desc"]]
         ];
         $params = array_merge($defaults, $params);
 
-        $mustRule = [
-            ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
-        ];
-        //for non english languages - search only document containing non english query
-        //for spanish - get only documents containing query_es property
-        //fro german - query_de property
-        if ($lang != "en") {
-            $mustRule[] = ["exists" => ["field" => $this->getQueryPropName($lang)]];
-        }
-
         $searchQuery = [
             "bool" => [
                 "filter" => ["term" => ["tube" => $tube]],
-                "must" => $mustRule
+                "must" => [
+                    ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
+                ]
             ]
         ];
         $data = $this->buildRequestBody($searchQuery, $params, $fields);
@@ -223,23 +197,16 @@ class Searches extends AbstractIndex
     /**
      * get randomized queries
      * @param $tube string
-     * @param $lang
      * @param $params array
      * @param $fields array
      * @return array|null
      */
-    public function getRandom($tube, $lang, $params = [], $fields = [])
+    public function getRandom($tube, $params = [], $fields = [])
     {
         $mustRule = [
             ["term" => ["tube" => $tube]],
             ["range" => ["count" => ["gte" => self::MIN_ALLOWED_COUNT]]]
         ];
-        //for non english languages - search only document containing non english query
-        //for spanish - get only documents containing query_es property
-        //fro german - query_de property
-        if ($lang != "en") {
-            $mustRule[] = ["exists" => ["field" => $this->getQueryPropName($lang)]];
-        }
         $searchQuery = [
             "function_score" => [
                 "functions" => [
@@ -266,51 +233,55 @@ class Searches extends AbstractIndex
         return trim(preg_replace('/[^\p{L}\p{N}\s]/u', '', $query));
     }
 
+
+    private function prepareParams($params)
+    {
+        $allowedKeys = array_keys($this->getProps());
+        $filtered = array_filter($params, function ($key) use ($allowedKeys) {
+            return in_array($key, $allowedKeys);
+        }, ARRAY_FILTER_USE_KEY);
+        return array_map(function ($value) {
+            return $this->normalizeQuery($value);
+        }, $filtered);
+    }
+
+    private function prepareUpdateScript($params)
+    {
+        $now = date("Y-m-d H:i:s");
+        $scriptStr = "ctx._source.count++; ctx._source.last_updated=$now;";
+        foreach ($params as $key => $value) {
+            $scriptStr .= "if (!ctx._source.$key != null) { ctx._source.$key = $value; }";
+        }
+        return ["source" => $scriptStr];
+    }
     /**
      * insert or update document. if exist - only increment counter
      * @param $tube
-     * @param $query
      * @param array $params
      * @return bool
      */
-    public function upsert($tube, $query, $params = [])
+    public function upsert($tube, $params)
     {
-        //build initial data 2 store in case document not yet exist
+        if (!isset($params["query_en"])) {
+            return null;
+        }
+        //initial data in case document not yet exist
         $data2store = [
-            "query" => $this->normalizeQuery($query),
             "tube" => $tube,
             "count" => 1,
             "last_updated" => date("Y-m-d H:i:s")
         ];
-
-        //build upsert script sting: if document exist increment counter && update timestamp
-        $scriptStr = "ctx._source.count++; ctx._source.last_updated=params.time;";
-
-        $allowedProps = $this->getProps();
-        //loop through sent data, normalize each text field and add to data
-        foreach ($params as $key => $value) {
-            if (isset($allowedProps[$key]) && $allowedProps[$key]["type"] === "text") {
-                $data2store[$key] = $this->normalizeQuery($value);
-                //add fields to source script iin case there not yet exist
-                //for example existing document without query_de field
-                $scriptStr .= "ctx._source.$key=\"" . $data2store[$key] . "\"";
-
-            }
-        }
+        $params = $this->prepareParams($params);
         $request = [
             "index" => $this->name,
-            "id" => $this->generateId($tube, $query),
+            "id" => $this->generateId($tube, $params["query_en"]),
             "body" => [
-                "script" => [
-                    "source" => $scriptStr,
-                    "params" => ["time" => date("Y-m-d H:i:s")]
-                ],
-                "upsert" => $data2store
+                "script" => $this->prepareUpdateScript($params),
+                "upsert" => array_merge($data2store, $params)
             ]
         ];
         return $this->update($request);
     }
-
 
     /**
      * get one document by id
@@ -351,31 +322,11 @@ class Searches extends AbstractIndex
     protected function generateId($tube, $query)
     {
         $query = str_replace(" ", "_", $this->normalizeQuery($query));
-        $final = $tube . "-" . $query;
+        $final = $tube . "_" . $query;
         return md5($final);
     }
 
 
-    private function getAnalyzerField($lang)
-    {
-        $analyzers = [
-            "en" => "english",
-            "es" => "spanish",
-            "de" => "german"
-        ];
-        return $analyzers[$lang] ?? null;
-    }
-
-
-    /**
-     * build document prop name, like "query_es"
-     * @param $lang
-     * @return string|null
-     */
-    private function getQueryPropName($lang)
-    {
-        return $lang == "en" ? "query" : "query_$lang";
-    }
 
 
 }
