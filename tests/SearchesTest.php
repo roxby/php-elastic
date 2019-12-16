@@ -6,7 +6,7 @@ class SearchesTest extends TestCase
 {
     public $searchesIndex;
     public $hosts = ['localhost:9200'];
-    public $tube = "test";
+    public $tube = "phpunit_test";
     public $query_first = "lazy dog";
     public $query_second = "diligent dog";
 
@@ -47,7 +47,7 @@ class SearchesTest extends TestCase
 
     public function documentExist()
     {
-        $res = $this->searchesIndex->getOne($this->tube, $this->query_first);
+        $res = $this->searchesIndex->getById($this->tube, $this->query_first);
         $this->assertTrue(!is_null($res));
         $this->assertEquals(1, $res['count']);
     }
@@ -58,7 +58,7 @@ class SearchesTest extends TestCase
         $this->assertEquals(1, $res);
         $this->refresh();
 
-        $res = $this->searchesIndex->getOne($this->tube, $this->query_first);
+        $res = $this->searchesIndex->getById($this->tube, $this->query_first);
         $this->assertEquals(2, $res['count']);
     }
 
@@ -68,12 +68,11 @@ class SearchesTest extends TestCase
     {
         $this->searchesIndex->upsert($this->tube, $this->query_second);
         $this->refresh();
-        $res = $this->searchesIndex->searchMany($this->tube, 'dog');
-        //var_dump($res);
-        //$this->assertTrue(!empty($res['data']));
-        //$this->assertEquals(2, $res['total']);
-
+        $res = $this->searchesIndex->getMany($this->tube, 'dog');
+        $this->assertTrue(!empty($res['data']));
+        $this->assertEquals(2, $res['total']);
     }
+
     public function delete()
     {
         $res = $this->searchesIndex->deleteOne($this->tube, $this->query_first);

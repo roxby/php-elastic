@@ -45,7 +45,7 @@ class Videos extends AbstractIndex
      * @see https://qbox.io/blog/elasticsearch-english-analyzer-customize
      * @return array
      */
-    public function buildMapping()
+    public function getProps()
     {
         return [
             'external_id' => ['type' => 'integer'],
@@ -117,7 +117,7 @@ class Videos extends AbstractIndex
      * @return array
      */
 
-    public function searchMany($tube, $query, array $params = [], $fields = [])
+    public function getMany($tube, $query, array $params = [], $fields = [])
     {
         $defaults = [
             "from" => 0,
@@ -214,7 +214,14 @@ class Videos extends AbstractIndex
         return $mustRule;
     }
 
-    private function buildFilters($tube, $params) {
+    /**
+     * add filters to search query
+     * @param $tube
+     * @param $params
+     * @return array
+     */
+    private function buildFilters($tube, $params)
+    {
         $filters = [];
         $filters[] = ["term" => ["tube" => $tube]];
         if (isset($params['is_hd']) && $params['is_hd']) {
@@ -223,6 +230,11 @@ class Videos extends AbstractIndex
         return $filters;
     }
 
+    /**
+     * add sort to search query
+     * @param $sort
+     * @return array
+     */
     private function sort($sort)
     {
         switch ($sort) {
@@ -230,8 +242,6 @@ class Videos extends AbstractIndex
                 return ["external_id" => ["order" => "desc"]];
             case self::SORT_BY_ID_ASC:
                 return ["external_id" => ["order" => "asc"]];
-            case self::SORT_BY_POST_DATE:
-                return ["post_date" => ["order" => "desc"]];
             case self::SORT_BY_DURATION:
                 return ["duration" => ["order" => "desc"]];
             case self::SORT_MOST_VIEWED:
@@ -250,6 +260,7 @@ class Videos extends AbstractIndex
                 return ["comments_count" => ["order" => "desc"]];
             case self::SORT_BY_FAVOURITES:
                 return ["favourites_count" => ["order" => "desc"]];
+            case self::SORT_BY_POST_DATE:
             default:
                 return ["post_date" => ["order" => "desc"]];
         }
@@ -266,12 +277,15 @@ class Videos extends AbstractIndex
         return $this->updateMany(["deleted" => true], $tube, $ids);
     }
 
-
+    /**
+     * insert one videos
+     * @param $data
+     * @return bool
+     */
     public function addOne($data)
     {
         $query = [
             'index' => $this->name,
-            'type' => '_doc',
             'body' => $data,
         ];
         if (isset($data['tube']) && isset($data['external_id'])) {
@@ -282,6 +296,11 @@ class Videos extends AbstractIndex
         return $this->add($query);
     }
 
+    /**
+     * bulk insert
+     * @param $data
+     * @return bool
+     */
     public function addMany($data)
     {
         if (!count($data)) return false;
@@ -290,10 +309,8 @@ class Videos extends AbstractIndex
             $meta = [
                 "index" => [
                     "_index" => $this->name,
-                    "_type" => "_doc",
                 ]
             ];
-
             if (isset($d['tube']) && isset($d['external_id'])) {
                 $id = $this->generateId($d['tube'], $d['external_id']);
                 $meta["index"]["_id"] = $id;
@@ -303,22 +320,34 @@ class Videos extends AbstractIndex
         return $this->bulkAdd($finalD);
     }
 
-    public function getOne($tube, $external_id)
+    /**
+     * get one document by id
+     * @param $tube
+     * @param $external_id
+     * @return array|null
+     */
+    public function getById($tube, $external_id)
     {
         $params = [
             'index' => $this->name,
-            'type' => '_doc',
             'id' => $this->generateId($tube, $external_id)
         ];
         return $this->get($params);
     }
 
 
+    /**
+     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/updating_documents.html#_partial_document_update
+     * update one document
+     * @param $data
+     * @param $tube
+     * @param $external_id
+     * @return bool
+     */
     public function updateOne($data, $tube, $external_id)
     {
         $params = [
             'index' => $this->name,
-            'type' => '_doc',
             'id' => $this->generateId($tube, $external_id),
             'retry_on_conflict' => 3,
             'body' => [
@@ -336,7 +365,6 @@ class Videos extends AbstractIndex
             $params[] = [
                 "update" => [
                     "_index" => $this->name,
-                    "_type" => "_doc",
                     "_id" => $this->generateId($tube, $id)
                 ]
             ];
@@ -347,16 +375,27 @@ class Videos extends AbstractIndex
         return $this->bulkUpdate($params);
     }
 
+    /**
+     * delete one document
+     * @param $tube
+     * @param $external_id
+     * @return bool
+     */
     public function deleteOne($tube, $external_id)
     {
         $params = [
             'index' => $this->name,
-            'type' => '_doc',
             'id' => $this->generateId($tube, $external_id)
         ];
         return $this->delete($params);
     }
 
+    /**
+     * bulk delete
+     * @param $tube
+     * @param $external_ids
+     * @return bool
+     */
     public function deleteMany($tube, $external_ids)
     {
         if (!count($external_ids)) return false;
@@ -365,7 +404,6 @@ class Videos extends AbstractIndex
             $params[] = [
                 "delete" => [
                     "_index" => $this->name,
-                    "_type" => "_doc",
                     "_id" => $this->generateId($tube, $id)
                 ]];
         }

@@ -1,8 +1,9 @@
 {
   "name": "roxby/elastic",
   "require": {
-    "elasticsearch/elasticsearch": "~6.0",
-    "ext-json": "*"
+    "elasticsearch/elasticsearch": "^7.0",
+    "ext-json": "*",
+    "google/cloud-translate": "^1.6"
   },
   "autoload": {
     "psr-4": {

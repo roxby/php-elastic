@@ -8,7 +8,9 @@ class VideosTest extends TestCase
 
     public $videosIndex;
     public $hosts = ['localhost:9200'];
-    public $tube = "test";
+    public $initExternalId = 10000000;
+
+    public $tube = "phpunit_test";
 
     public function __construct($name = null, array $data = [], $dataName = '')
     {
@@ -42,7 +44,7 @@ class VideosTest extends TestCase
     public function addSingleDocument()
     {
         $data = [
-            'external_id' => 1,
+            'external_id' => $this->initExternalId,
             'title' => 'foxes',
             'description' => 'brown fox jumped over lazy dog',
             'tube' => $this->tube,
@@ -50,6 +52,7 @@ class VideosTest extends TestCase
             'duration' => 500
         ];
         $res = $this->videosIndex->addOne($data);
+
         $this->assertTrue($res);
         $this->refresh();
     }
@@ -57,7 +60,7 @@ class VideosTest extends TestCase
 
     public function getDocument()
     {
-        $res = $this->videosIndex->getOne($this->tube, 1);
+        $res = $this->videosIndex->getById($this->tube, $this->initExternalId);
         $this->assertTrue(!is_null($res));
     }
 
@@ -66,14 +69,14 @@ class VideosTest extends TestCase
         $data = [
             'post_date' => date('2015-01-12 00:00:00')
         ];
-        $res = $this->videosIndex->updateOne($data, $this->tube, 1);
+        $res = $this->videosIndex->updateOne($data, $this->tube, $this->initExternalId);
         $this->assertTrue($res);
         $this->refresh();
     }
 
     public function bulkAdd()
     {
-        $bulkIds = [2, 3, 4, 5, 6];
+       $bulkIds = $this->generateExternalIds(5);
         $params = [];
         for ($i = 0; $i < count($bulkIds); $i++) {
             $vid = $bulkIds[$i];
@@ -96,21 +99,19 @@ class VideosTest extends TestCase
         //find one
         $existingQuery = "brown fox";
         $notExistingQuery = "not existing query";
-        $params = [
-            'fields' => ["title" => 1, "description" => 3]
-        ];
-        $res = $this->videosIndex->searchMany($this->tube, $existingQuery, 'latest', $params);
+
+        $res = $this->videosIndex->getMany($this->tube, $existingQuery);
         $this->assertTrue(!empty($res['data']));
         $this->assertEquals(1, $res['total']);
 
 
         //find 0
-        $res = $this->videosIndex->searchMany($this->tube, $notExistingQuery, $params);
+        $res = $this->videosIndex->getMany($this->tube, $notExistingQuery);
         $this->assertTrue(empty($res['data']));
         $this->assertEquals(0, $res['total']);
 
         //find 5
-        $res = $this->videosIndex->searchMany($this->tube, 'lorem ipsum', $params);
+        $res = $this->videosIndex->getMany($this->tube, 'lorem ipsum');
         $this->assertTrue(!empty($res['data']));
         $this->assertEquals(5, $res['total']);
 
@@ -119,14 +120,14 @@ class VideosTest extends TestCase
 
     public function deleteSingleDocument()
     {
-        $res = $this->videosIndex->deleteOne($this->tube, 1);
+        $res = $this->videosIndex->deleteOne($this->tube, $this->initExternalId);
         $this->assertTrue($res);
         $this->videosIndex->indexRefresh();
     }
 
     public function bulkDelete()
     {
-        $bulkIds = [2, 3, 4, 5, 6];
+        $bulkIds = $this->generateExternalIds(5);
         $this->videosIndex->deleteMany($this->tube, $bulkIds);
 
         $this->videosIndex->indexRefresh();
@@ -135,4 +136,14 @@ class VideosTest extends TestCase
         $this->assertEquals(0, $count);
     }
 
+
+    private function generateExternalIds($count)
+    {
+        $initialId = $this->initExternalId;
+        $bulkIds = [];
+        for($i = 1; $i <= $count; $i++) {
+            $bulkIds[] = $initialId + $i;
+        }
+        return $bulkIds;
+    }
 }
