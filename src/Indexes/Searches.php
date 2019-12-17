@@ -5,7 +5,7 @@ namespace Roxby\Elastic\Indexes;
 class Searches extends AbstractIndex
 {
     public $name = "searches";
-    const  MIN_ALLOWED_COUNT = 100;
+    const  MIN_ALLOWED_COUNT = 1; //todo:rests to 100 when we have enough searches again
 
     protected static $instance = null;
 
@@ -119,7 +119,7 @@ class Searches extends AbstractIndex
     public function getMany($tube, $query, array $params = [], $fields = [])
     {
         $normalized = $this->normalizeQuery($query);
-        //filter by tube, get related queries, but not the one is sent
+        //filter by tube, get related queries
         $searchQuery = [
             "bool" => [
                 "must" => [
@@ -130,9 +130,6 @@ class Searches extends AbstractIndex
                 ],
                 "filter" => [
                     "term" => ["tube" => $tube]
-                ],
-                "must_not" => [
-                    ["terms" => ["query_en.keyword" => $normalized]] //not current query
                 ]
             ]
         ];
@@ -245,9 +242,18 @@ class Searches extends AbstractIndex
         }, $filtered);
     }
 
-    private function prepareUpdateScript($params)
+    /**
+     * @param $params array
+     * @param $doIncrement boolean
+     * @return array
+     */
+    private function prepareUpdateScript($params, $doIncrement)
     {
-        $scriptStr = "ctx._source.count++; ctx._source.last_updated=params.time;";
+        $scriptStr = "ctx._source.last_updated=params.time;";
+
+        if($doIncrement) {
+            $scriptStr .= "ctx._source.count++;";
+        }
         foreach ($params as $key => $value) {
             $scriptStr .= "if (ctx._source.$key == null) { ctx._source.$key = \"$value\"; }";
         }
@@ -260,9 +266,10 @@ class Searches extends AbstractIndex
      * insert or update document. if exist - only increment counter
      * @param $tube
      * @param array $params
+     * @param boolean $doIncrement define to increment or not document counter
      * @return bool
      */
-    public function upsert($tube, $params)
+    public function upsert($tube, $params, $doIncrement = true)
     {
         if (!isset($params["query_en"])) {
             return null;
@@ -278,7 +285,7 @@ class Searches extends AbstractIndex
             "index" => $this->name,
             "id" => $this->generateId($tube, $params["query_en"]),
             "body" => [
-                "script" => $this->prepareUpdateScript($params),
+                "script" => $this->prepareUpdateScript($params, $doIncrement),
                 "upsert" => array_merge($data2store, $params)
             ]
         ];
