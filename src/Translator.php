@@ -38,4 +38,21 @@ class Translator
         }
 
     }
+
+
+    public function bulkTranslate(array $strings, $sourceLanguage, $targetLanguage = 'en')
+    {
+        $data = $this->translator->translateBatch($strings, [
+            'source' => $sourceLanguage,
+            'target' => $targetLanguage
+        ]);
+        $result = [];
+        foreach ($data as $d) {
+            $r = [];
+            $r[$targetLanguage] = $d["text"] ?? null;
+            $r[$sourceLanguage] = $d["input"] ?? null;
+            $result[] = $r;
+        }
+        return $result;
+    }
 }
