@@ -272,7 +272,7 @@ class Searches extends AbstractIndex
     public function upsert($tube, $params, $doIncrement = true)
     {
         if (!isset($params["query_en"])) {
-            return null;
+            return false;
         }
         //initial data in case document not yet exist
         $data2store = [
