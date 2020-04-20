@@ -5,7 +5,7 @@ namespace Roxby\Elastic\Indexes;
 class Searches extends AbstractIndex
 {
     public $name = "searches";
-    const  MIN_ALLOWED_COUNT = 1; //todo:rests to 100 when we have enough searches again
+    const  MIN_ALLOWED_COUNT = 100; 
 
     protected static $instance = null;
 
