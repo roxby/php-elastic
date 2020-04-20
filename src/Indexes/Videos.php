@@ -7,6 +7,7 @@ class Videos extends AbstractIndex
     public $name = 'videos';
     protected static $instance = null;
 
+    const SORT_BY_RELEVANCE = 'relevance';
     const SORT_BY_ID_ASC = 'id-asc';
     const SORT_BY_ID_DESC = 'id-desc';
     const SORT_BY_POST_DATE = 'post_date';
@@ -138,7 +139,7 @@ class Videos extends AbstractIndex
                 ]
             ]
         ];
-        if (isset($params["sort"])) {
+        if (isset($params["sort"]) && $params['sort'] !== self::SORT_BY_RELEVANCE) {
             $body["sort"] = $this->sort($params["sort"]);
         }
         $data = [
@@ -262,7 +263,7 @@ class Videos extends AbstractIndex
                 return ["favourites_count" => ["order" => "desc"]];
             case self::SORT_BY_POST_DATE:
             default:
-                return ["post_date" => ["order" => "desc"]];
+                return ["post_date.keyword" => ["order" => "desc"]];
         }
     }
 
