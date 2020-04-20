@@ -20,30 +20,39 @@ class Translator
 
     /**
      * @param $query
+     * @param string $sourceLanguage
      * @param string $targetLanguage
-     * @return array
+     * @return string
      */
-    public function translate($query, $targetLanguage = 'en')
+    public function translate($query, $sourceLanguage, $targetLanguage = 'en')
     {
         try {
             $result = $this->translator->translate($query, [
+                'source' => $sourceLanguage,
                 'target' => $targetLanguage
             ]);
-            if (isset($result['text']) && isset($result['source'])) {
-                return [
-                    'success' => true,
-                    'text' => $result['text'],
-                    'source' => $result['source']
-                ];
-            } else {
-                return ['success' => false];
-            }
+
+            return $result['text'] ?? null;
         } catch (\Exception $exception) {
-            return [
-                'success' => false,
-                'error' => $exception->getMessage()
-            ];
+            return null;
         }
 
+    }
+
+
+    public function bulkTranslate(array $strings, $sourceLanguage, $targetLanguage = 'en')
+    {
+        $data = $this->translator->translateBatch($strings, [
+            'source' => $sourceLanguage,
+            'target' => $targetLanguage
+        ]);
+        $result = [];
+        foreach ($data as $d) {
+            $r = [];
+            $r[$targetLanguage] = $d["text"] ?? null;
+            $r[$sourceLanguage] = $d["input"] ?? null;
+            $result[] = $r;
+        }
+        return $result;
     }
 }
