@@ -147,12 +147,27 @@ abstract class AbstractIndex
 
     /**
      * @param $params
-     * @return bool|string
+     * @return integer
      */
     protected function bulkUpdate($params)
     {
         $responses = $this->client->bulk(["body" => $params]);
-        return isset($responses['errors']) ? !$responses['errors'] : false;
+        $updated = 0;
+        if(isset($responses['errors']) && isset($responses['items'])) {
+            $gotErrors = $responses['errors'];
+            $items = $responses['items'];
+            if(!$gotErrors) {
+                return count($items);
+            }
+
+            foreach ($items as $item) {
+                $result = $item['update']['result'] ?? null;
+                if($result == 'updated' || $result == 'noop') {
+                    $updated++;
+                }
+            }
+        }
+        return $updated;
     }
 
     /**

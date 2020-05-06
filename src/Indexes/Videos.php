@@ -271,7 +271,7 @@ class Videos extends AbstractIndex
      * mark videos as deleted
      * @param $tube string
      * @param $ids array
-     * @return bool
+     * @return integer
      */
     public function setDeleted($tube, $ids)
     {
