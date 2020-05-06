@@ -131,7 +131,7 @@ abstract class AbstractIndex
             }
 
             foreach ($items as $item) {
-                $result = $item['create']['result'] ?? null;
+                $result = $item['index']['result'] ?? null;
                 if($result == 'created') {
                     $created++;
                 }
