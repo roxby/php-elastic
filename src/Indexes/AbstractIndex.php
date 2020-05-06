@@ -117,12 +117,27 @@ abstract class AbstractIndex
      * bulk API expects JSON action/metadata pairs. We're pushing meta data and object itself for each inserted document
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/indexing_documents.html#_bulk_indexing
      * @param $data
-     * @return bool
+     * @return integer
      */
     protected function bulkAdd($data)
     {
         $responses = $this->client->bulk(['body' => $data]);
-        return isset($responses['errors']) ? !$responses['errors'] : false;
+        $created = 0;
+        if(isset($responses['errors']) && isset($responses['items'])) {
+            $gotErrors = $responses['errors'];
+            $items = $responses['items'];
+            if(!$gotErrors) {
+                return count($items);
+            }
+
+            foreach ($items as $item) {
+                $result = $item['create']['result'] ?? null;
+                if($result == 'created') {
+                    $created++;
+                }
+            }
+        }
+        return $created;
     }
 
 

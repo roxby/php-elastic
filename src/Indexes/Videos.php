@@ -300,7 +300,7 @@ class Videos extends AbstractIndex
     /**
      * bulk insert
      * @param $data
-     * @return bool
+     * @return integer
      */
     public function addMany($data)
     {
