@@ -172,7 +172,7 @@ class Videos extends AbstractIndex
 
 
         if ($params && (isset($params['min']) || isset($params['max']))) {
-            $range[] = [
+            $range = [
                 "range" => ["duration" => ["gt" => $params["min"] ?? 0, "lte" => $params["max"] ?? 10000000]]
             ];
             $mustRule[] = $range;
