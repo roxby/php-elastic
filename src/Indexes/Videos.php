@@ -369,7 +369,7 @@ class Videos extends AbstractIndex
                 'query' => [
                     "bool" => ["filter" => ["term" => ["tube" => $tube]]]
                 ],
-                "sort" => ["external_id" => ["order" => "desc"]]
+                "sort" => ["post_date" => ["order" => "desc"]]
             ],
         ];
         $res = $this->search($params);
