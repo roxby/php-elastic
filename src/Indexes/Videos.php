@@ -159,10 +159,15 @@ class Videos extends AbstractIndex
                 "multi_match" => [
                     "query" => $query,
                     "fields" => [
+                        "models^11",
                         "models.english^11",
+                        "title^10",
                         "title.english^10",
+                        "description^9",
                         "description.english^9",
+                        "tags^8",
                         "tags.english^8",
+                        "cats^7",
                         "cats.english^7"
                     ],
                     "minimum_should_match" => "75%"
