@@ -219,7 +219,7 @@ class Videos extends AbstractIndex
                 return ["favourites_count" => ["order" => "desc"]];
             case self::SORT_BY_POST_DATE:
             default:
-                return ["post_date" => ["order" => "desc"]];
+                return ["post_date.keyword" => ["order" => "desc"]];
         }
     }
 
