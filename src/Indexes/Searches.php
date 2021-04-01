@@ -168,10 +168,8 @@ class Searches extends AbstractIndex
         $res = $this->search($data);
         if (isset($res["error"])) return $res;
 
-        if(isset($res["result"]["data"]) && count($res["result"]["data"])) {
-            return Response::success($res["result"]["data"][0]);
-        }
-        return Response::success([]);
+        $doc = $res["result"]["data"][0] ?? [];
+        return Response::success($doc);
     }
 
     /**

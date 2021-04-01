@@ -449,7 +449,7 @@ class Videos extends AbstractIndex
         $res = $this->search($params);
         if(isset($res["error"])) return $res;
 
-        $doc = $res["result"]["data"][0] ?? null;
+        $doc = $res["result"]["data"][0] ?? [];
         return Response::success($doc);
     }
 
