@@ -20,21 +20,6 @@ class Videos extends AbstractIndex
     const SORT_BY_FAVOURITES = 'most_favourited';
 
 
-    public $fields = [
-        "models.name^11",
-        "models.name.english^11",
-        "models.alias^11",
-        "models.alias.english^11",
-        "title^10",
-        "title.english^10",
-        "description^9",
-        "description.english^9",
-        "tags^8",
-        "tags.english^8",
-        "cats^7",
-        "cats.english^7"
-    ];
-
     public static function getInstance($hosts = []) :Videos
     {
         if (is_null(self::$instance)) {
@@ -57,15 +42,18 @@ class Videos extends AbstractIndex
     {
         return [
             'properties' => [
-                'external_id' => ['type' => 'integer'],
+                'external_id' => ['type' => 'long'],
                 'title' => [
                     'type' => 'text',
-                    "fields" => $this->addEnglishAnalyzer()
-
+                    'fields' => [
+                        'keyword' => ['type' => 'keyword'],
+                        'english' => ['type' => 'text', 'analyzer'=> 'english']
+                    ]
                 ],
                 'description' => [
                     'type' => 'text',
-                    "fields" => $this->addEnglishAnalyzer()
+                    'fields' =>
+                        ['english' => ['type' => 'text', 'analyzer' => 'english']]
                 ],
                 'duration' => ['type' => 'integer'],
                 'rating' => ['type' => 'integer'],
@@ -76,24 +64,30 @@ class Videos extends AbstractIndex
                     'format' => "yyyy-MM-dd HH:mm:ss"
                 ],
                 'models' => [
-                    'properties' => [
-                        'name' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()],
-                        'alias' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()]
-                    ]
+                    'type' => 'text',
+                    'fields' =>
+                        ['english' => ['type' => 'text', 'analyzer' => 'english']]
                 ],
                 'cats' => [
                     'type' => 'text',
-                    "fields" => $this->addEnglishAnalyzer()
+                    'fields' =>
+                        ['english' => ['type' => 'text', 'analyzer' => 'english']]
                 ],
                 'tags' => [
                     'type' => 'text',
-                    "fields" => $this->addEnglishAnalyzer()
+                    'fields' =>
+                        ['english' => ['type' => 'text', 'analyzer' => 'english']]
                 ],
                 'tube' => ['type' => 'keyword'],
                 'deleted' => ['type' => 'boolean'],
-                'url' => ['type' => 'text'],
+                'video_page' => ['type' => 'text'],
                 'thumb' => ['type' => 'text'],
-                'vthumb' => ['type' => 'object'],
+                'vthumb' => [
+                    'properties' => [
+                        'link' => ['type' => 'text'],
+                        'w' => ['type' => 'integer'],
+                        'h' => ['type' => 'integer']]
+                ],
                 'comments_count' => ['type' => 'integer'],
                 'favourites_count' => ['type' => 'integer'],
                 'is_hd' => ['type' => 'boolean']
@@ -101,15 +95,6 @@ class Videos extends AbstractIndex
         ];
     }
 
-    private function addEnglishAnalyzer() :array
-    {
-        return [
-            "english" => [
-                "type" => 'text',
-                "analyzer" => "english"
-            ]
-        ];
-    }
 
     /**
      * perform search
@@ -123,11 +108,11 @@ class Videos extends AbstractIndex
      * - fields assoc array of search fields [field1 => 1, field2 => 3, field3 => 10]
      * - min integer - minimum duration
      * - max integer - maximum duration
-     * @param array $fields
+     * @param $sort string
      * @return array
      */
 
-    public function getMany(string $tube, string $query, array $params = [], array $fields = []) :array
+    public function getMany(string $tube, string $query, array $params, string $sort) :array
     {
         $defaults = [
             "from" => 0,
@@ -136,20 +121,24 @@ class Videos extends AbstractIndex
         $params = array_merge($defaults, $params);
         $mustRule = $this->buildMustRule($query, $params);
 
+        $filter = [
+            ["term" => ["tube" => $tube]],
+        ];
+        if (isset($params['is_hd'])) {$filter[] = ["term" => ["is_hd" => $params['is_hd']]];}
+
         $body = [
-            "_source" => $fields, //if empty just get all
             "from" => $params['from'],
             "size" => $params['size'],
             "query" => [
                 "bool" => [
                     "must" => $mustRule,
-                    "filter" => $this->buildFilters($tube, $params),
+                    "filter" => $filter,
                     "must_not" => ["match" => ["deleted" => true]],
                 ]
             ]
         ];
-        if (isset($params["sort"]) && $params['sort'] !== self::SORT_BY_RELEVANCE) {
-            $body["sort"] = $this->sort($params["sort"]);
+        if ($sort !== self::SORT_BY_RELEVANCE) {
+            $body["sort"] = $this->sort($sort);
         }
         $data = [
             'index' => $this->name,
@@ -159,29 +148,6 @@ class Videos extends AbstractIndex
     }
 
 
-    /**
-     * Build array of search fields
-     * Add additional english field (for english analyzer) to every text field for better
-     * @param array $fields - expected structure [field1 => (int)boost, field2 => (int) boost, ...]
-     * @return array
-     */
-    private function buildSearchFields(array $fields) :array
-    {
-        $result = [];
-        static $mapping = null;
-        if (is_null($mapping)) {
-            $mapping = $this->getMapping();
-        }
-        foreach ($fields as $field => $boost) {
-            if (isset($mapping[$field])) {
-                $result[] = "$field^$boost";
-                if ($mapping[$field]['type'] == 'text') {
-                    $result[] = "$field.english^$boost";
-                }
-            }
-        }
-        return $result;
-    }
 
     /**
      * build must rule to add to search query
@@ -197,48 +163,38 @@ class Videos extends AbstractIndex
      */
     private function buildMustRule(string $query, array $params = []) :array
     {
-
-        $fieldsArr = isset($params["fields"]) ? $this->buildSearchFields($params['fields']) : $this->fields;
         $mustRule = [
             [
                 "multi_match" => [
                     "query" => $query,
-                    "fields" => $fieldsArr,
+                    "fields" => [
+                        "models^11",
+                        "models.english^11",
+                        "title^10",
+                        "title.english^10",
+                        "description^9",
+                        "description.english^9",
+                        "tags^8",
+                        "tags.english^8",
+                        "cats^7",
+                        "cats.english^7"
+                    ],
                     "minimum_should_match" => "75%"
                 ]
-
             ]
         ];
-        $range[] = [
-            "range" => ["post_date" => ["lte" => date("Y-m-d H:i:s")]]
-        ];
-        if (!empty($params) && (isset($params['min']) || isset($params['max']))) {
-            $range[] = [
-                "range" => ["duration" => [
-                    "gt" => isset($params["min"]) ? $params["min"] : 0,
-                    "lte" => isset($params["max"]) ? $params["max"] : 10000000
-                ]]
+
+
+        if ($params && (isset($params['min']) || isset($params['max']))) {
+            $range = [
+                "range" => ["duration" => ["gt" => $params["min"] ?? 0, "lte" => $params["max"] ?? 10000000]]
             ];
+            $mustRule[] = $range;
         }
-        $mustRule[] = $range;
+
         return $mustRule;
     }
 
-    /**
-     * add filters to search query
-     * @param $tube
-     * @param $params
-     * @return array
-     */
-    private function buildFilters(string $tube, array $params): array
-    {
-        $filters = [];
-        $filters[] = ["term" => ["tube" => $tube]];
-        if (isset($params['is_hd']) && $params['is_hd']) {
-            $filters[] = ["term" => ["is_hd" => true]];
-        }
-        return $filters;
-    }
 
     /**
      * add sort to search query
@@ -314,20 +270,20 @@ class Videos extends AbstractIndex
     public function addMany(array $data) :array
     {
         if (!count($data)) return Response::success(0);
-        $finalD = [];
+        $res = [];
         foreach ($data as $d) {
+            if (!isset($d['tube']) || !isset($d['external_id'])) continue;
+
             $meta = [
                 "index" => [
                     "_index" => $this->name,
+                    "_id" => $this->generateId($d['tube'], $d['external_id'])
                 ]
             ];
-            if (isset($d['tube']) && isset($d['external_id'])) {
-                $id = $this->generateId($d['tube'], $d['external_id']);
-                $meta["index"]["_id"] = $id;
-            }
-            array_push($finalD, $meta, $d);
+
+            array_push($res, $meta, $d);
         }
-        return $this->bulkAdd($finalD);
+        return $this->bulkAdd($res);
     }
 
     /**
@@ -360,9 +316,7 @@ class Videos extends AbstractIndex
             'index' => $this->name,
             'id' => $this->generateId($tube, $external_id),
             'retry_on_conflict' => 3,
-            'body' => [
-                'doc' => $data
-            ]
+            'body' => ['doc' => $data]
         ];
         return $this->update($params);
     }
@@ -379,15 +333,10 @@ class Videos extends AbstractIndex
 
         $params = [];
         foreach ($external_ids as $id) {
-            $params[] = [
-                "update" => [
-                    "_index" => $this->name,
-                    "_id" => $this->generateId($tube, $id)
-                ]
-            ];
-            $params[] = [
-                "doc" => $data
-            ];
+            array_push($params,
+                ["update" => ["_index" => $this->name, "_id" => $this->generateId($tube, $id)]],
+                ["doc" => $data]
+            );
         }
         return $this->bulkUpdate($params);
     }
@@ -439,11 +388,9 @@ class Videos extends AbstractIndex
             'size' => 1,
             'body' => [
                 'query' => [
-                    "bool" => [
-                        "filter" => ["term" => ["tube" => $tube]]
-                    ]
+                    "bool" => ["filter" => ["term" => ["tube" => $tube]]]
                 ],
-                "sort" => ["external_id" => ["order" => "desc"]]
+                "sort" => ["post_date.keyword" => ["order" => "desc"]]
             ],
         ];
         $res = $this->search($params);
@@ -455,7 +402,8 @@ class Videos extends AbstractIndex
 
     protected function generateId(string $tube, int $external_id) :string
     {
-        return "$tube-$external_id";
+        $id =  "$tube-$external_id";
+        return md5($id);
     }
 
 }

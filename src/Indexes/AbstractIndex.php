@@ -141,12 +141,8 @@ abstract class AbstractIndex
         try {
             $responses = $this->client->bulk(['body' => $data]);
             $created = 0;
-            if(isset($responses['errors']) && isset($responses['items'])) {
-                $gotErrors = $responses['errors'];
+            if(isset($responses['items'])) {
                 $items = $responses['items'];
-                if(!$gotErrors) {
-                    return Response::success(count($items));
-                }
 
                 foreach ($items as $item) {
                     $result = $item['index']['result'] ?? null;

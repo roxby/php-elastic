@@ -124,8 +124,7 @@ class VideosTest extends TestCase
         $existingQuery = "brown fox";
         $notExistingQuery = "not existing query";
 
-        $res = $this->videosIndex->getMany($this->tube, $existingQuery);
-        var_dump($res);die;
+        $res = $this->videosIndex->getMany($this->tube, $existingQuery, [], VIndex::SORT_BY_RELEVANCE);
         $data = $res["result"];
 
 
@@ -134,7 +133,7 @@ class VideosTest extends TestCase
 
 
         //find 0
-        $res = $this->videosIndex->getMany($this->tube, $notExistingQuery);
+        $res = $this->videosIndex->getMany($this->tube, $notExistingQuery, [], VIndex::SORT_BY_RELEVANCE);
         $data = $res["result"];
 
 
@@ -142,7 +141,7 @@ class VideosTest extends TestCase
         $this->assertEquals(0, $data['total']);
 
         //find 5
-        $res = $this->videosIndex->getMany($this->tube, 'lorem ipsum');
+        $res = $this->videosIndex->getMany($this->tube, 'lorem ipsum', [], VIndex::SORT_BY_RELEVANCE);
         $this->assertTrue($res["success"]);
         $data = $res['result'];
         $this->assertNotEmpty($data['data']);
