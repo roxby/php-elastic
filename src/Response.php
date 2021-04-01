@@ -6,7 +6,7 @@ class Response
     public static function success($data = null) :array
     {
         $response = ["success" => true];
-        if(!is_null($data)) $response["data"] = $data;
+        if(!is_null($data)) $response["result"] = $data;
         return $response;
     }
 
