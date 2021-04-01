@@ -102,7 +102,7 @@ abstract class AbstractIndex
     {
         try {
             $res = $this->client->get($params);
-            $doc =  $res["found"] ? $res["_source"] : null;
+            $doc =  $res["found"] ? $res["_source"] : [];
             return Response::success($doc);
         } catch (\Exception $exception) {
             return Response::error($exception);
