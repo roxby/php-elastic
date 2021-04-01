@@ -29,7 +29,12 @@ class SearchesTest extends TestCase
     public function isIndexExist()
     {
         $res = SIndex::exists($this->hosts, 'searches');
-        $this->assertTrue($res);
+        if (!$res["result"]) {
+            $this->searchesIndex->create();
+            $res = SIndex::exists($this->hosts, 'searches');
+        }
+        $this->assertTrue($res["success"]);
+        $this->assertTrue($res["result"]);
     }
 
     public function refresh()
@@ -39,27 +44,32 @@ class SearchesTest extends TestCase
 
     public function addSingleDocument()
     {
-        $res = $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_first]);
-        $this->assertTrue($res);
+        $data = $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_first]);
+        $this->assertTrue($data["success"]);
+        $this->assertEquals(1, $data["result"]);
+        $this->refresh();
         $this->refresh();
     }
 
 
     public function documentExist()
     {
-        $res = $this->searchesIndex->getById($this->tube, $this->query_first);
-        $this->assertTrue(!is_null($res));
-        $this->assertEquals(1, $res['count']);
+        $data = $this->searchesIndex->getById($this->tube, $this->query_first);
+        $this->assertTrue($data["success"]);
+        $this->assertNotEmpty($data["result"]);
     }
 
     public function incrementDocumentCount()
     {
-        $res = $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_first]);
-        $this->assertEquals(1, $res);
+        $data = $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_first]);
+        $this->assertTrue($data["success"]);
+        $this->assertEquals(1, $data["result"]);
         $this->refresh();
 
-        $res = $this->searchesIndex->getById($this->tube, $this->query_first);
-        $this->assertEquals(2, $res['count']);
+
+        $data = $this->searchesIndex->getById($this->tube, $this->query_first);
+        $this->assertNotEmpty($data["result"]);
+        $this->assertEquals(2, $data["result"]['count']);
     }
 
 
@@ -68,22 +78,23 @@ class SearchesTest extends TestCase
     {
         $this->searchesIndex->upsert($this->tube, ["query_en" => $this->query_second]);
         $this->refresh();
-        $res = $this->searchesIndex->getMany($this->tube, 'dog');
-        $this->assertTrue(!empty($res['data']));
-        $this->assertEquals(2, $res['total']);
+        $data = $this->searchesIndex->getMany($this->tube, 'dog');
+
+        $this->assertNotEmpty($data['result']['data']);
+        $this->assertEquals(2, $data['result']['total']);
     }
 
     public function delete()
     {
-        $res = $this->searchesIndex->deleteOne($this->tube, $this->query_first);
-        $this->assertTrue($res);
+        $data = $this->searchesIndex->deleteOne($this->tube, $this->query_first);
+        $this->assertTrue($data["success"]);
 
-        $res = $this->searchesIndex->deleteOne($this->tube, $this->query_second);
-        $this->assertTrue($res);
+        $data = $this->searchesIndex->deleteOne($this->tube, $this->query_second);
+        $this->assertTrue($data["success"]);
 
         $this->searchesIndex->indexRefresh();
 
-        $count = $this->searchesIndex->count(["term" => ["tube" => $this->tube]]);
-        $this->assertEquals(0,$count);
+        $res = $this->searchesIndex->count(["term" => ["tube" => $this->tube]]);
+        $this->assertEquals(0,$res["result"]);
     }
 }
