@@ -170,7 +170,7 @@ abstract class AbstractIndex
     {
         try {
             $data = $this->client->update($params);
-            $res = isset($data["result"]) && $data["result"] == "updated";
+            $res = isset($data["result"]) && ($data["result"] == "updated" || $data["result"] == "created");
             return Response::success(intval($res));
         } catch (\Exception $exception) {
             //in case document not exists elastic returns not found exception, not false
