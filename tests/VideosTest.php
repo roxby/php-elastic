@@ -26,6 +26,7 @@ class VideosTest extends TestCase
         $this->getDocument();
         $this->bulkAdd();
         $this->search();
+        $this->setDeleted();
         $this->deleteSingleDocument();
         $this->bulkDelete();
     }
@@ -33,7 +34,13 @@ class VideosTest extends TestCase
     public function isIndexExist()
     {
         $res = VIndex::exists($this->hosts, 'videos');
-        $this->assertTrue($res);
+        if (!$res["result"]) {
+            $this->videosIndex->create();
+            $res = VIndex::exists($this->hosts, 'videos');
+        }
+
+        $this->assertTrue($res["success"]);
+        $this->assertTrue($res["result"]);
     }
 
     public function refresh()
@@ -49,11 +56,12 @@ class VideosTest extends TestCase
             'description' => 'brown fox jumped over lazy dog',
             'tube' => $this->tube,
             'post_date' => date('2014-01-12 00:00:00'),
-            'duration' => 500
+            'duration' => 500,
+            'deleted' => false
         ];
-        $res = $this->videosIndex->addOne($data);
-
-        $this->assertTrue($res);
+        $data = $this->videosIndex->addOne($data);
+        $this->assertTrue($data["success"]);
+        $this->assertEquals(1, $data["result"]);
         $this->refresh();
     }
 
@@ -61,7 +69,8 @@ class VideosTest extends TestCase
     public function getDocument()
     {
         $res = $this->videosIndex->getById($this->tube, $this->initExternalId);
-        $this->assertTrue(!is_null($res));
+        $this->assertTrue($res["success"]);
+        $this->assertNotEmpty($res["result"]);
     }
 
     public function updateSingleDocument()
@@ -70,9 +79,23 @@ class VideosTest extends TestCase
             'post_date' => date('2015-01-12 00:00:00')
         ];
         $res = $this->videosIndex->updateOne($data, $this->tube, $this->initExternalId);
-        $this->assertTrue($res);
+        $this->assertTrue($res["success"]);
+        $this->assertEquals(1, $res["result"]);
         $this->refresh();
     }
+
+    public function setDeleted()
+    {
+        $bulkIds = $this->generateExternalIds(5);
+
+        $updateIds = array_slice($bulkIds, 0, 3);
+        $res = $this->videosIndex->setDeleted($this->tube, $updateIds);
+        $this->assertTrue($res["success"]);
+        $this->assertEquals(3, $res["result"]);
+        $this->refresh();
+    }
+
+
 
     public function bulkAdd()
     {
@@ -90,7 +113,8 @@ class VideosTest extends TestCase
             ];
         }
         $res = $this->videosIndex->addMany($params);
-        $this->assertTrue($res);
+        $this->assertTrue($res["success"]);
+        $this->assertEquals(5, $res["result"]);
         $this->refresh();
     }
 
@@ -101,19 +125,28 @@ class VideosTest extends TestCase
         $notExistingQuery = "not existing query";
 
         $res = $this->videosIndex->getMany($this->tube, $existingQuery);
-        $this->assertTrue(!empty($res['data']));
-        $this->assertEquals(1, $res['total']);
+        var_dump($res);die;
+        $data = $res["result"];
+
+
+        $this->assertNotEmpty($data['data']);
+        $this->assertEquals(1, $data['total']);
 
 
         //find 0
         $res = $this->videosIndex->getMany($this->tube, $notExistingQuery);
-        $this->assertTrue(empty($res['data']));
-        $this->assertEquals(0, $res['total']);
+        $data = $res["result"];
+
+
+        $this->assertEmpty($data['data']);
+        $this->assertEquals(0, $data['total']);
 
         //find 5
         $res = $this->videosIndex->getMany($this->tube, 'lorem ipsum');
-        $this->assertTrue(!empty($res['data']));
-        $this->assertEquals(5, $res['total']);
+        $this->assertTrue($res["success"]);
+        $data = $res['result'];
+        $this->assertNotEmpty($data['data']);
+        $this->assertEquals(5, $data['total']);
 
     }
 
@@ -121,7 +154,8 @@ class VideosTest extends TestCase
     public function deleteSingleDocument()
     {
         $res = $this->videosIndex->deleteOne($this->tube, $this->initExternalId);
-        $this->assertTrue($res);
+        $this->assertTrue($res["success"]);
+        $this->assertTrue($res["result"] == 1);
         $this->videosIndex->indexRefresh();
     }
 
@@ -132,12 +166,13 @@ class VideosTest extends TestCase
 
         $this->videosIndex->indexRefresh();
 
-        $count = $this->videosIndex->count(["term" => ["tube" => $this->tube]]);
-        $this->assertEquals(0, $count);
+        $res = $this->videosIndex->count(["term" => ["tube" => $this->tube]]);
+        $this->assertTrue($res["success"]);
+        $this->assertEquals(0, $res["result"]);
     }
 
 
-    private function generateExternalIds($count)
+    private function generateExternalIds($count) :array
     {
         $initialId = $this->initExternalId;
         $bulkIds = [];
