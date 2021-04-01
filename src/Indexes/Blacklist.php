@@ -64,7 +64,7 @@ class Blacklist extends AbstractIndex
      * @param $term
      * @return array
      */
-    public function hasSimilarTerms($term) :array
+    public function hasSimilarTerms(string $term) :array
     {
         $data = [
             "index" => $this->name,
@@ -77,6 +77,23 @@ class Blacklist extends AbstractIndex
 
         $total = $this->getTotal($result);
         return Response::success($total > 0);
+    }
+
+    /**
+     * get relevant documents
+     * @param string $term
+     * @param bool $withIds
+     * @return array
+     */
+    public function getMany(string $term, bool $withIds) :array
+    {
+        $data = [
+            "index" => $this->name,
+            "body" => [
+                "query" => ["fuzzy" => ["term" => $term]]
+            ]
+        ];
+        return $this->search($data, $withIds);
     }
 
     /**
