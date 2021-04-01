@@ -2,6 +2,8 @@
 
 namespace Roxby\Elastic\Indexes;
 
+use Roxby\Elastic\Response;
+
 class Videos extends AbstractIndex
 {
     public $name = 'videos';
@@ -33,7 +35,7 @@ class Videos extends AbstractIndex
         "cats.english^7"
     ];
 
-    public static function getInstance($hosts = [])
+    public static function getInstance($hosts = []) :Videos
     {
         if (is_null(self::$instance)) {
             self::$instance = new Videos($hosts);
@@ -41,58 +43,65 @@ class Videos extends AbstractIndex
         return self::$instance;
     }
 
+    public function getSettings(): array
+    {
+        return [];
+    }
+
     /**
      * indexing text fields twice: once with the english analyzer and once with the standard analyzer.
      * @see https://qbox.io/blog/elasticsearch-english-analyzer-customize
      * @return array
      */
-    public function getProps()
+    public function getProps() :array
     {
         return [
-            'external_id' => ['type' => 'integer'],
-            'title' => [
-                'type' => 'text',
-                "fields" => $this->addEnglishAnalyzer()
+            'properties' => [
+                'external_id' => ['type' => 'integer'],
+                'title' => [
+                    'type' => 'text',
+                    "fields" => $this->addEnglishAnalyzer()
 
-            ],
-            'description' => [
-                'type' => 'text',
-                "fields" => $this->addEnglishAnalyzer()
-            ],
-            'duration' => ['type' => 'integer'],
-            'rating' => ['type' => 'integer'],
-            'rating_amount' => ['type' => 'integer'],
-            'video_viewed' => ['type' => 'integer'],
-            'post_date' => [
-                'type' => 'date',
-                'format' => "yyyy-MM-dd HH:mm:ss"
-            ],
-            'models' => [
-                'properties' => [
-                    'name' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()],
-                    'alias' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()]
-                ]
-            ],
-            'cats' => [
-                'type' => 'text',
-                "fields" => $this->addEnglishAnalyzer()
-            ],
-            'tags' => [
-                'type' => 'text',
-                "fields" => $this->addEnglishAnalyzer()
-            ],
-            'tube' => ['type' => 'keyword'],
-            'deleted' => ['type' => 'boolean'],
-            'url' => ['type' => 'text'],
-            'thumb' => ['type' => 'text'],
-            'vthumb' => ['type' => 'object'],
-            'comments_count' => ['type' => 'integer'],
-            'favourites_count' => ['type' => 'integer'],
-            'is_hd' => ['type' => 'boolean']
+                ],
+                'description' => [
+                    'type' => 'text',
+                    "fields" => $this->addEnglishAnalyzer()
+                ],
+                'duration' => ['type' => 'integer'],
+                'rating' => ['type' => 'integer'],
+                'rating_amount' => ['type' => 'integer'],
+                'video_viewed' => ['type' => 'integer'],
+                'post_date' => [
+                    'type' => 'date',
+                    'format' => "yyyy-MM-dd HH:mm:ss"
+                ],
+                'models' => [
+                    'properties' => [
+                        'name' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()],
+                        'alias' => ['type' => 'text', "fields" => $this->addEnglishAnalyzer()]
+                    ]
+                ],
+                'cats' => [
+                    'type' => 'text',
+                    "fields" => $this->addEnglishAnalyzer()
+                ],
+                'tags' => [
+                    'type' => 'text',
+                    "fields" => $this->addEnglishAnalyzer()
+                ],
+                'tube' => ['type' => 'keyword'],
+                'deleted' => ['type' => 'boolean'],
+                'url' => ['type' => 'text'],
+                'thumb' => ['type' => 'text'],
+                'vthumb' => ['type' => 'object'],
+                'comments_count' => ['type' => 'integer'],
+                'favourites_count' => ['type' => 'integer'],
+                'is_hd' => ['type' => 'boolean']
+            ]
         ];
     }
 
-    private function addEnglishAnalyzer()
+    private function addEnglishAnalyzer() :array
     {
         return [
             "english" => [
@@ -118,7 +127,7 @@ class Videos extends AbstractIndex
      * @return array
      */
 
-    public function getMany($tube, $query, array $params = [], $fields = [])
+    public function getMany(string $tube, string $query, array $params = [], array $fields = []) :array
     {
         $defaults = [
             "from" => 0,
@@ -156,7 +165,7 @@ class Videos extends AbstractIndex
      * @param array $fields - expected structure [field1 => (int)boost, field2 => (int) boost, ...]
      * @return array
      */
-    private function buildSearchFields(array $fields)
+    private function buildSearchFields(array $fields) :array
     {
         $result = [];
         static $mapping = null;
@@ -186,7 +195,7 @@ class Videos extends AbstractIndex
      * - max integer - maximum duration
      * @return array
      */
-    private function buildMustRule($query, $params = [])
+    private function buildMustRule(string $query, array $params = []) :array
     {
 
         $fieldsArr = isset($params["fields"]) ? $this->buildSearchFields($params['fields']) : $this->fields;
@@ -221,7 +230,7 @@ class Videos extends AbstractIndex
      * @param $params
      * @return array
      */
-    private function buildFilters($tube, $params)
+    private function buildFilters(string $tube, array $params): array
     {
         $filters = [];
         $filters[] = ["term" => ["tube" => $tube]];
@@ -236,7 +245,7 @@ class Videos extends AbstractIndex
      * @param $sort
      * @return array
      */
-    private function sort($sort)
+    private function sort($sort) :array
     {
         switch ($sort) {
             case self::SORT_BY_ID_DESC:
@@ -271,9 +280,9 @@ class Videos extends AbstractIndex
      * mark videos as deleted
      * @param $tube string
      * @param $ids array
-     * @return integer
+     * @return array
      */
-    public function setDeleted($tube, $ids)
+    public function setDeleted(string $tube, array $ids) :array
     {
         return $this->updateMany(["deleted" => true], $tube, $ids);
     }
@@ -281,9 +290,9 @@ class Videos extends AbstractIndex
     /**
      * insert one videos
      * @param $data
-     * @return bool
+     * @return array
      */
-    public function addOne($data)
+    public function addOne(array $data) :array
     {
         $query = [
             'index' => $this->name,
@@ -300,11 +309,11 @@ class Videos extends AbstractIndex
     /**
      * bulk insert
      * @param $data
-     * @return integer
+     * @return array
      */
-    public function addMany($data)
+    public function addMany(array $data) :array
     {
-        if (!count($data)) return false;
+        if (!count($data)) return Response::success(0);
         $finalD = [];
         foreach ($data as $d) {
             $meta = [
@@ -325,9 +334,9 @@ class Videos extends AbstractIndex
      * get one document by id
      * @param $tube
      * @param $external_id
-     * @return array|null
+     * @return array
      */
-    public function getById($tube, $external_id)
+    public function getById(string $tube, int $external_id) :array
     {
         $params = [
             'index' => $this->name,
@@ -343,9 +352,9 @@ class Videos extends AbstractIndex
      * @param $data
      * @param $tube
      * @param $external_id
-     * @return bool
+     * @return array
      */
-    public function updateOne($data, $tube, $external_id)
+    public function updateOne(array $data, string $tube, int $external_id) :array
     {
         $params = [
             'index' => $this->name,
@@ -358,9 +367,16 @@ class Videos extends AbstractIndex
         return $this->update($params);
     }
 
-    public function updateMany($data, $tube, $external_ids)
+    /**
+     * @param $data
+     * @param $tube
+     * @param $external_ids
+     * @return array
+     */
+    public function updateMany(array $data, string $tube, array $external_ids) :array
     {
-        if (!count($external_ids)) return false;
+        if (!count($external_ids)) return Response::success(0);
+
         $params = [];
         foreach ($external_ids as $id) {
             $params[] = [
@@ -380,9 +396,9 @@ class Videos extends AbstractIndex
      * delete one document
      * @param $tube
      * @param $external_id
-     * @return bool
+     * @return array
      */
-    public function deleteOne($tube, $external_id)
+    public function deleteOne(string $tube, int $external_id) : array
     {
         $params = [
             'index' => $this->name,
@@ -395,11 +411,11 @@ class Videos extends AbstractIndex
      * bulk delete
      * @param $tube
      * @param $external_ids
-     * @return bool
+     * @return array
      */
-    public function deleteMany($tube, $external_ids)
+    public function deleteMany(string $tube, array $external_ids) : array
     {
-        if (!count($external_ids)) return false;
+        if (!count($external_ids)) return Response::success(0);
         $params = [];
         foreach ($external_ids as $id) {
             $params[] = [
@@ -414,9 +430,9 @@ class Videos extends AbstractIndex
     /**
      * get last stored video
      * @param $tube
-     * @return array|null
+     * @return array
      */
-    public function getLastStored($tube)
+    public function getLastStored(string $tube) :array
     {
         $params = [
             'index' => $this->name,
@@ -431,13 +447,13 @@ class Videos extends AbstractIndex
             ],
         ];
         $res = $this->search($params);
-        if ($res) {
-            return isset($res["data"]) && !empty($res["data"]) ? $res["data"][0] : null;
-        }
-        return null;
+        if(isset($res["error"])) return $res;
+
+        $doc = $res["result"]["data"][0] ?? null;
+        return Response::success($doc);
     }
 
-    protected function generateId($tube, $external_id)
+    protected function generateId(string $tube, int $external_id) :string
     {
         return "$tube-$external_id";
     }
