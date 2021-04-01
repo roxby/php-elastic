@@ -61,7 +61,8 @@ class Videos extends AbstractIndex
                 'video_viewed' => ['type' => 'integer'],
                 'post_date' => [
                     'type' => 'date',
-                    'format' => "yyyy-MM-dd HH:mm:ss"
+                    'format' => "yyyy-MM-dd HH:mm:ss",
+                    'fields' => ['english' => ['type' => 'text', 'analyzer' => 'english']]
                 ],
                 'models' => [
                     'type' => 'text',
@@ -75,8 +76,11 @@ class Videos extends AbstractIndex
                 ],
                 'tags' => [
                     'type' => 'text',
-                    'fields' =>
-                        ['english' => ['type' => 'text', 'analyzer' => 'english']]
+                    "fields" => [
+                        "keyword" => [
+                            "type" => "keyword"
+                        ]
+                    ]
                 ],
                 'tube' => ['type' => 'keyword'],
                 'deleted' => ['type' => 'boolean'],

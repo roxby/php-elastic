@@ -13,7 +13,7 @@ class Response
     public static function error(\Exception $exception) :array
     {
         return [
-            "success" => true,
+            "success" => false,
             "error" => $exception->getMessage()
         ];
     }
