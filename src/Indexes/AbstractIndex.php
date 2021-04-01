@@ -250,16 +250,18 @@ abstract class AbstractIndex
     /**
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/search_operations.html
      * @param array $params
+     * @param bool $withIds
      * @return array
      */
-    protected function search(array $params) :array
+    protected function search(array $params, bool $withIds = false) :array
     {
         try {
             $results = $this->client->search($params);
             if ($results["hits"]) {
                 $results = $results["hits"];
-                $sources = array_map(function ($res) {
-                    return $res["_source"];
+                $sources = array_map(function ($res) use ($withIds){
+                    $source = $res["_source"];
+                    return $withIds ? array_merge(["id" => $res["_id"]], $source) : $source;
                 }, $results["hits"]);
 
                 $total = $results["total"]["value"] ?? 0;
