@@ -240,7 +240,7 @@ class Searches extends AbstractIndex
 
     private function prepareParams(array $params) :array
     {
-        $allowedKeys = array_keys($this->getProps());
+        $allowedKeys = array_keys($this->getProps()["properties"]);
         $filtered = array_filter($params, function ($key) use ($allowedKeys) {
             return in_array($key, $allowedKeys);
         }, ARRAY_FILTER_USE_KEY);
