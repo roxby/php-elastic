@@ -2,6 +2,7 @@
 
 namespace Roxby\Elastic\Indexes;
 
+use Roxby\Elastic\Response;
 class Searches extends AbstractIndex
 {
     public $name = "searches";
@@ -9,7 +10,7 @@ class Searches extends AbstractIndex
 
     protected static $instance = null;
 
-    public static function getInstance($hosts = [])
+    public static function getInstance($hosts = []) :Searches
     {
         if (is_null(self::$instance)) {
             self::$instance = new Searches($hosts);
@@ -17,57 +18,63 @@ class Searches extends AbstractIndex
         return self::$instance;
     }
 
+    public function getSettings(): array
+    {
+        return [];
+    }
 
     /**
      * @return array
      */
-    public function getProps()
+    public function getProps() :array
     {
         return [
-            "query_en" => [
-                "type" => "text",
-                "fields" => [
-                    "keyword" => [
-                        "type" => "keyword"
-                    ],
-                    "english" => [
-                        "type" => "text",
-                        "analyzer" => "english",
+            "properties" => [
+                "query_en" => [
+                    "type" => "text",
+                    "fields" => [
+                        "keyword" => [
+                            "type" => "keyword"
+                        ],
+                        "english" => [
+                            "type" => "text",
+                            "analyzer" => "english",
+                        ]
                     ]
-                ]
-            ],
-            "last_updated" => [
-                "type" => "date",
-                "format" => "yyyy-MM-dd HH:mm:ss"
-            ],
-            "count" => [
-                "type" => "integer"
-            ],
-            "tube" => [
-                "type" => "keyword"
-            ],
-            "query_de" => [
-                "type" => "text",
-                "analyzer" => "german",
-                "fields" => [
-                    "keyword" => [
-                        "type" => "keyword"
-                    ],
-                    "german" => [
-                        "type" => "text",
-                        "analyzer" => "german",
+                ],
+                "last_updated" => [
+                    "type" => "date",
+                    "format" => "yyyy-MM-dd HH:mm:ss"
+                ],
+                "count" => [
+                    "type" => "integer"
+                ],
+                "tube" => [
+                    "type" => "keyword"
+                ],
+                "query_de" => [
+                    "type" => "text",
+                    "analyzer" => "german",
+                    "fields" => [
+                        "keyword" => [
+                            "type" => "keyword"
+                        ],
+                        "german" => [
+                            "type" => "text",
+                            "analyzer" => "german",
+                        ]
                     ]
-                ]
-            ],
-            "query_es" => [
-                "type" => "text",
-                "fields" => [
-                    "keyword" => [
-                        "type" => "keyword"
-                    ],
-                    "spanish" => [
-                        "type" => "text",
-                        "analyzer" => "spanish",
+                ],
+                "query_es" => [
+                    "type" => "text",
+                    "fields" => [
+                        "keyword" => [
+                            "type" => "keyword"
+                        ],
+                        "spanish" => [
+                            "type" => "text",
+                            "analyzer" => "spanish",
+                        ]
                     ]
                 ]
             ]
@@ -84,7 +91,7 @@ class Searches extends AbstractIndex
      * @param array $fields - document fields to return
      * @return array
      */
-    private function buildRequestBody(array $searchQuery, $params = [], $fields = [])
+    private function buildRequestBody(array $searchQuery, array $params = [], array $fields = []) :array
     {
         $defaults = [
             "from" => 0,
@@ -114,9 +121,9 @@ class Searches extends AbstractIndex
      * - from integer
      * - size integer
      * @param array $fields
-     * @return array|null
+     * @return array
      */
-    public function getMany($tube, $query, array $params = [], $fields = [])
+    public function getMany(string $tube, string $query, array $params = [], array $fields = []) :array
     {
         $normalized = $this->normalizeQuery($query);
         //filter by tube, get related queries
@@ -144,9 +151,9 @@ class Searches extends AbstractIndex
      * @param $tube string
      * @param $field string
      * @param $value string
-     * @return array|null
+     * @return array
      */
-    public function getOne($tube, $field, $value)
+    public function getOne(string $tube, string $field, string $value) :array
     {
         $searchQuery = [
             "bool" => [
@@ -159,10 +166,12 @@ class Searches extends AbstractIndex
 
         $data = $this->buildRequestBody($searchQuery);
         $res = $this->search($data);
-        if(isset($res["data"]) && count($res["data"])) {
-            return $res["data"][0];
+        if (isset($res["error"])) return $res;
+
+        if(isset($res["result"]["data"]) && count($res["result"]["data"])) {
+            return Response::success($res["result"]["data"][0]);
         }
-        return null;
+        return Response::success([]);
     }
 
     /**
@@ -170,9 +179,9 @@ class Searches extends AbstractIndex
      * @param $tube
      * @param array $params
      * @param array $fields
-     * @return array|null
+     * @return array
      */
-    public function getMostPopular($tube, array $params = [], array $fields = [])
+    public function getMostPopular(string $tube, array $params = [], array $fields = []) :array
     {
         $defaults = [
             "sort" => ["count" => ["order" => "desc"]]
@@ -196,9 +205,9 @@ class Searches extends AbstractIndex
      * @param $tube string
      * @param $params array
      * @param $fields array
-     * @return array|null
+     * @return array
      */
-    public function getRandom($tube, $params = [], $fields = [])
+    public function getRandom(string $tube, array $params = [], array $fields = []) :array
     {
         $mustRule = [
             ["term" => ["tube" => $tube]],
@@ -223,7 +232,7 @@ class Searches extends AbstractIndex
      * @param $query
      * @return string|string[]|null
      */
-    private function normalizeQuery($query)
+    private function normalizeQuery(string $query)
     {
         $query = strtolower($query);
         //allow any letter + any number + whitespace
@@ -231,7 +240,7 @@ class Searches extends AbstractIndex
     }
 
 
-    private function prepareParams($params)
+    private function prepareParams(array $params) :array
     {
         $allowedKeys = array_keys($this->getProps());
         $filtered = array_filter($params, function ($key) use ($allowedKeys) {
@@ -247,7 +256,7 @@ class Searches extends AbstractIndex
      * @param $doIncrement boolean
      * @return array
      */
-    private function prepareUpdateScript($params, $doIncrement)
+    private function prepareUpdateScript(array $params, bool $doIncrement) :array
     {
         $scriptStr = "ctx._source.last_updated=params.time;";
 
@@ -264,15 +273,15 @@ class Searches extends AbstractIndex
     }
     /**
      * insert or update document. if exist - only increment counter
-     * @param $tube
+     * @param string $tube
      * @param array $params
      * @param boolean $doIncrement define to increment or not document counter
-     * @return bool
+     * @return array
      */
-    public function upsert($tube, $params, $doIncrement = true)
+    public function upsert(string $tube, array $params, bool $doIncrement = true) :array
     {
         if (!isset($params["query_en"])) {
-            return false;
+            return Response::error(new \Exception("query not sent"));
         }
         //initial data in case document not yet exist
         $data2store = [
@@ -296,9 +305,9 @@ class Searches extends AbstractIndex
      * get one document by id
      * @param $tube
      * @param $query
-     * @return array|null
+     * @return array
      */
-    public function getById($tube, $query)
+    public function getById(string $tube, string $query) :array
     {
         $params = [
             'index' => $this->name,
@@ -311,9 +320,9 @@ class Searches extends AbstractIndex
      * delete one document by id
      * @param $tube
      * @param $query
-     * @return bool
+     * @return array
      */
-    public function deleteOne($tube, $query)
+    public function deleteOne($tube, $query) :array
     {
         $params = [
             'index' => $this->name,
@@ -328,7 +337,7 @@ class Searches extends AbstractIndex
      * @param $query
      * @return string
      */
-    protected function generateId($tube, $query)
+    protected function generateId(string $tube, string $query) :string
     {
         $query = str_replace(" ", "_", $this->normalizeQuery($query));
         $final = $tube . "_" . $query;
