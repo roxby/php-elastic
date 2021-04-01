@@ -1,7 +1,7 @@
 <?php
 
 namespace Roxby\Elastic\Indexes;
-
+use Roxby\Elastic\Response;
 
 abstract class AbstractIndex
 {
@@ -23,58 +23,72 @@ abstract class AbstractIndex
      * Check if index exist
      * @param $hosts array
      * @param $name string
-     * @return bool
+     * @return array
      */
-    public static function exists($hosts, $name)
+    public static function exists(array $hosts, string $name) :array
     {
         try {
             $client = self::getClient($hosts);
-            return $client->indices()->exists(['index' => $name]);
+            $exists =  $client->indices()->exists(['index' => $name]);
+            return Response::success($exists);
         } catch (\Exception $exception) {
-            return $exception->getMessage();
+            return Response::error($exception);
         }
 
     }
 
     /**
-     * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/index_management.html
      * create new index
-     * @return bool
+     * @return array
      */
-    public function create()
+    public function create() :array
     {
         try {
             $params = [
                 'index' => $this->name,
-                'body' => [
-                    'mappings' => [
-                        '_source' => [
-                            'enabled' => true
-                        ],
-                        'properties' => $this->getProps()
-                    ]
-                ]
+                'body' => $this->getSettings()
             ];
             $this->client->indices()->create($params);
-            return true;
+            return Response::success();
         } catch (\Exception $exception) {
-            return false;
+            return Response::error($exception);
         }
+    }
 
+    /**
+     * set index mapping
+     * @return array
+     */
+    public function setMapping() :array
+    {
+        try {
+            $params = [
+                'index' => $this->name,
+                'body' => $this->getProps()
+            ];
+            $data = $this->client->indices()->putMapping($params);
+            $res = $data["acknowledged"] ?? false;
+            return Response::success($res);
+
+        } catch (\Exception $exception) {
+            return Response::error($exception);
+        }
     }
 
     /**
      * return index mapping
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/index_management.html
-     * @return array|null
+     * @return array
      */
-    public function getMapping()
+    public function getMapping() :array
     {
        try {
            $res = $this->client->indices()->getMapping(['index' => $this->name]);
-           return $res[$this->name]['mappings']['properties'] ?? [];
+           $props =  $res[$this->name]['mappings']['properties'] ?? [];
+           return Response::success($props);
+
        } catch (\Exception $exception) {
-           return null;
+           return Response::error($exception);
        }
     }
 
@@ -82,15 +96,16 @@ abstract class AbstractIndex
      * Get document by its id - uid in our case
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/getting_documents.html
      * @param $params
-     * @return array|null
+     * @return array
      */
-    protected function get($params)
+    protected function get($params) :array
     {
         try {
             $res = $this->client->get($params);
-            return $res["found"] ? $res["_source"] : null;
+            $doc =  $res["found"] ? $res["_source"] : null;
+            return Response::success($doc);
         } catch (\Exception $exception) {
-            return null;
+            return Response::error($exception);
         }
 
     }
@@ -99,15 +114,17 @@ abstract class AbstractIndex
      * Add single document
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/indexing_documents.html#_single_document_indexing
      * @param $query
-     * @return bool
+     * @return array
      */
-    protected function add($query)
+    protected function add($query) :array
     {
         try {
-            $this->client->index($query);
-            return true;
+            $data = $this->client->index($query);
+
+           $res = isset($data["result"]) && $data["result"] === "created";
+           return Response::success(intval($res));
         } catch (\Exception $exception) {
-            return false;
+            return Response::error($exception);
         }
     }
 
@@ -117,27 +134,32 @@ abstract class AbstractIndex
      * bulk API expects JSON action/metadata pairs. We're pushing meta data and object itself for each inserted document
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/indexing_documents.html#_bulk_indexing
      * @param $data
-     * @return integer
+     * @return array
      */
-    protected function bulkAdd($data)
+    protected function bulkAdd($data) :array
     {
-        $responses = $this->client->bulk(['body' => $data]);
-        $created = 0;
-        if(isset($responses['errors']) && isset($responses['items'])) {
-            $gotErrors = $responses['errors'];
-            $items = $responses['items'];
-            if(!$gotErrors) {
-                return count($items);
-            }
+        try {
+            $responses = $this->client->bulk(['body' => $data]);
+            $created = 0;
+            if(isset($responses['errors']) && isset($responses['items'])) {
+                $gotErrors = $responses['errors'];
+                $items = $responses['items'];
+                if(!$gotErrors) {
+                    return Response::success(count($items));
+                }
 
-            foreach ($items as $item) {
-                $result = $item['index']['result'] ?? null;
-                if($result == 'created') {
-                    $created++;
+                foreach ($items as $item) {
+                    $result = $item['index']['result'] ?? null;
+                    if($result == 'created') {
+                        $created++;
+                    }
                 }
             }
+            return Response::success($created);
+        } catch (\Exception $exception) {
+            return Response::error($exception);
         }
-        return $created;
+
     }
 
 
@@ -146,80 +168,95 @@ abstract class AbstractIndex
      * Update single document
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/updating_documents.html
      * @param $params
-     * @return bool
+     * @return array
      */
-    protected function update($params)
+    protected function update($params) :array
     {
         try {
-            $this->client->update($params);
-            return true;
+            $data = $this->client->update($params);
+            $res = isset($data["result"]) && $data["result"] == "updated";
+            return Response::success(intval($res));
         } catch (\Exception $exception) {
             //in case document not exists elastic returns not found exception, not false
-            return false;
+            return Response::error($exception);
         }
 
     }
 
     /**
+     * update many documents
      * @param $params
-     * @return integer
+     * @return array
      */
-    protected function bulkUpdate($params)
+    protected function bulkUpdate($params):array
     {
-        $responses = $this->client->bulk(["body" => $params]);
-        $updated = 0;
-        if(isset($responses['errors']) && isset($responses['items'])) {
-            $gotErrors = $responses['errors'];
-            $items = $responses['items'];
-            if(!$gotErrors) {
-                return count($items);
-            }
+        try {
+            $responses = $this->client->bulk(["body" => $params]);
+            $updated = 0;
+            if(isset($responses['errors']) && isset($responses['items'])) {
+                $gotErrors = $responses['errors'];
+                $items = $responses['items'];
+                if(!$gotErrors) {
+                    return Response::success(count($items));
+                }
 
-            foreach ($items as $item) {
-                $result = $item['update']['result'] ?? null;
-                if($result == 'updated' || $result == 'noop') {
-                    $updated++;
+                foreach ($items as $item) {
+                    $result = $item['update']['result'] ?? null;
+                    if($result == 'updated' || $result == 'noop') {
+                        $updated++;
+                    }
                 }
             }
+            return Response::success($updated);
+        } catch (\Exception $exception) {
+           return Response::error($exception);
         }
-        return $updated;
+
     }
 
     /**
      * Delete single document by id
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/deleting_documents.html
      * @param $params
-     * @return bool
+     * @return array
      */
-    protected function delete($params)
+    protected function delete($params) :array
     {
         try {
-            $this->client->delete($params);
-            return true;
+            $data = $this->client->delete($params);
+            $res = isset($data["result"]) && $data["result"] == "deleted";
+            return Response::success(intval($res));
         } catch (\Exception $exception) {
             //in case document not exists elastic returns not found exception, not false
-            return false;
+            return Response::error($exception);
         }
     }
 
     /**
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
      * @param $params
-     * @return bool
+     * @return array
      */
-    protected function bulkDelete($params)
+    protected function bulkDelete($params) :array
     {
-        $responses = $this->client->bulk(["body" => $params]);
-        return isset($responses['errors']) ? !$responses['errors'] : false;
+        try {
+            $data = $this->client->bulk(["body" => $params]);
+            $items = $data["items"] ?? [];
+            return Response::success(count($items));
+
+        } catch (\Exception $exception) {
+            Response::error($exception);
+        }
+
     }
 
 
     /**
      * @see https://www.elastic.co/guide/en/elasticsearch/client/php-api/current/search_operations.html
      * @param array $params
-     * @return array|null
+     * @return array
      */
-    protected function search($params)
+    protected function search(array $params) :array
     {
         try {
             $results = $this->client->search($params);
@@ -230,14 +267,14 @@ abstract class AbstractIndex
                 }, $results["hits"]);
 
                 $total = $results["total"]["value"] ?? 0;
-                return [
+                return Response::success([
                     "data" => $sources,
                     "total" => $total
-                ];
+                ]);
             }
-            return null;
+            return Response::error(new \Exception("nothing found"));
         } catch (\Exception $exception) {
-            return null;
+            return Response::error($exception);
         }
 
     }
@@ -255,24 +292,36 @@ abstract class AbstractIndex
      * Get count of documents
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-count.html
      * @param $query
-     * @return integer
+     * @return array
      */
-    public function count($query)
+    public function count($query) :array
     {
-        $params = [
-            'index' => $this->name,
-            'body' => [
-                "query" => $query
-            ]
-        ];
-        $res = $this->client->count($params);
-        return isset($res["count"]) ? $res["count"] : 0;
+        try {
+            $params = [
+                'index' => $this->name,
+                'body' => [
+                    "query" => $query
+                ]
+            ];
+            $res = $this->client->count($params);
+            $count = isset($res["count"]) ? $res["count"] : 0;
+            return Response::success($count);
+        } catch (\Exception $exception) {
+            return Response::error($exception);
+        }
+
     }
 
     /**
-     * @return array of index properties
+     * @return array of index fields mapping
      */
-    abstract function getProps();
+    abstract function getProps():array;
+
+    /**
+     * return index settings - analyzer, etc
+     * @return array
+     */
+    abstract function getSettings(): array;
 
 
 }
