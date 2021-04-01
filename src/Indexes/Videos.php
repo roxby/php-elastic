@@ -62,7 +62,7 @@ class Videos extends AbstractIndex
                 'post_date' => [
                     'type' => 'date',
                     'format' => "yyyy-MM-dd HH:mm:ss",
-                    'fields' => ['english' => ['type' => 'text', 'analyzer' => 'english']]
+                    'fields' => ["keyword" => ["type" => "keyword"]]
                 ],
                 'models' => [
                     'type' => 'text',
