@@ -289,18 +289,12 @@ abstract class AbstractIndex
     /**
      * Get count of documents
      * @see https://www.elastic.co/guide/en/elasticsearch/reference/current/search-count.html
-     * @param $query
+     * @param array $params
      * @return array
      */
-    public function count($query) :array
+    public function count(array $params) :array
     {
         try {
-            $params = [
-                'index' => $this->name,
-                'body' => [
-                    "query" => $query
-                ]
-            ];
             $res = $this->client->count($params);
             $count = isset($res["count"]) ? $res["count"] : 0;
             return Response::success($count);

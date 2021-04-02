@@ -232,7 +232,7 @@ class Videos extends AbstractIndex
                 return ["favourites_count" => ["order" => "desc"]];
             case self::SORT_BY_POST_DATE:
             default:
-                return ["post_date.keyword" => ["order" => "desc"]];
+                return ["post_date.date" => ["order" => "desc"]];
         }
     }
 
@@ -410,4 +410,33 @@ class Videos extends AbstractIndex
         return md5($id);
     }
 
+
+    public function deletedCount(string $tube) :array
+    {
+        $params = [
+            'index' => $this->name,
+            'body' => [
+                'query' => [
+                    "bool" => [
+                        "filter" => ["term" => ["tube" => $tube]],
+                        "must_not" => ["match" => ["deleted" => true]]
+                    ]
+                ]
+            ],
+        ];
+        return $this->count($params);
+    }
+
+    public function total(string $tube) :array
+    {
+        $params = [
+            'index' => $this->name,
+            'body' => [
+                'query' => [
+                    "term" => ["tube" => $tube]
+                ]
+            ]
+        ];
+        return $this->count($params);
+    }
 }

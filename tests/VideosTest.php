@@ -164,8 +164,15 @@ class VideosTest extends TestCase
         $this->videosIndex->deleteMany($this->tube, $bulkIds);
 
         $this->videosIndex->indexRefresh();
-
-        $res = $this->videosIndex->count(["term" => ["tube" => $this->tube]]);
+        $params = [
+            'index' => "videos",
+            'body' => [
+                'query' => [
+                    "term" => ["tube" => $this->tube]
+                ]
+            ]
+        ];
+        $res = $this->videosIndex->count($params);
         $this->assertTrue($res["success"]);
         $this->assertEquals(0, $res["result"]);
     }

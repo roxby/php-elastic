@@ -94,7 +94,15 @@ class SearchesTest extends TestCase
 
         $this->searchesIndex->indexRefresh();
 
-        $res = $this->searchesIndex->count(["term" => ["tube" => $this->tube]]);
+        $params = [
+            'index' => "searches",
+            'body' => [
+                'query' => [
+                    "term" => ["tube" => $this->tube]
+                ]
+            ]
+        ];
+        $res = $this->searchesIndex->count($params);
         $this->assertEquals(0,$res["result"]);
     }
 }
