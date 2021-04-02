@@ -419,7 +419,7 @@ class Videos extends AbstractIndex
                 'query' => [
                     "bool" => [
                         "filter" => ["term" => ["tube" => $tube]],
-                        "must_not" => ["match" => ["deleted" => true]]
+                        "must" => ["match" => ["deleted" => true]]
                     ]
                 ]
             ],
