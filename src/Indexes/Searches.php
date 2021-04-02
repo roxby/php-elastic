@@ -248,27 +248,6 @@ class Searches extends AbstractIndex
             return $this->normalizeQuery($value);
         }, $filtered);
     }
-
-    /**
-     * @param $params array
-     * @param $doIncrement boolean
-     * @return array
-     */
-    private function prepareUpdateScript(array $params, bool $doIncrement) :array
-    {
-        $scriptStr = "ctx._source.last_updated=params.time;";
-
-        if($doIncrement) {
-            $scriptStr .= "ctx._source.count++;";
-        }
-        foreach ($params as $key => $value) {
-            $scriptStr .= "if (ctx._source.$key == null) { ctx._source.$key = \"$value\"; }";
-        }
-        return [
-            "source" => $scriptStr,
-            "params" => ["time" => date("Y-m-d H:i:s")]
-        ];
-    }
     /**
      * insert or update document. if exist - only increment counter
      * @param string $tube
@@ -292,7 +271,11 @@ class Searches extends AbstractIndex
             "index" => $this->name,
             "id" => $this->generateId($tube, $params["query_en"]),
             "body" => [
-                "script" => $this->prepareUpdateScript($params, $doIncrement),
+                "script" => [
+                    "source" => "ctx._source.count += params.count;ctx._source.last_updated=params.time;",
+                    "lang" => "painless",
+                    "params" => ["count" => 1, "time" => date("Y-m-d H:i:s")]
+                ],
                 "upsert" => array_merge($data2store, $params)
             ]
         ];
