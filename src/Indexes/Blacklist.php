@@ -69,7 +69,7 @@ class Blacklist extends AbstractIndex
         $data = [
             "index" => $this->name,
             "body" => [
-                "query" => ["fuzzy" => ["term" => $term]]
+                "query" => ["match" => ["term" => $term]]
             ]
         ];
         $result =  $this->search($data);
